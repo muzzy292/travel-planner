@@ -10,6 +10,7 @@ export function useAuth() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [denied, setDenied] = useState(false)
+  const [authError, setAuthError] = useState(null)
 
   useEffect(() => {
     const hash = window.location.hash
@@ -18,11 +19,16 @@ export function useAuth() {
     const refreshToken = params.get('refresh_token')
 
     if (accessToken && refreshToken) {
-      // Manually exchange hash tokens into a Supabase session
       supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(({ data }) => {
-          handleSession(data.session)
-          window.history.replaceState(null, '', window.location.pathname)
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('setSession error:', error)
+            setAuthError(error.message)
+            setLoading(false)
+          } else {
+            handleSession(data.session)
+            window.history.replaceState(null, '', window.location.pathname)
+          }
         })
     } else {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -63,5 +69,5 @@ export function useAuth() {
     await supabase.auth.signOut()
   }
 
-  return { session, loading, denied, signIn, signOut }
+  return { session, loading, denied, authError, signIn, signOut }
 }

@@ -12,12 +12,12 @@ import Settings from './pages/Settings'
 import './styles/global.css'
 
 export default function App() {
-  const { session, loading, denied, signIn, signOut } = useAuth()
+  const { session, loading, denied, authError, signIn, signOut } = useAuth()
   const { trips, activeTrip, setActiveTrip, createTrip, updateTrip } = useTrip()
   const { connected: calendarConnected, connect: connectCalendar, pushEvent, deleteEvent: deleteCalendarEvent } = useCalendar()
 
   if (loading) return <div className="loading">Loading…</div>
-  if (!session) return <Login signIn={signIn} denied={denied} />
+  if (!session) return <Login signIn={signIn} denied={denied} authError={authError} />
 
   return (
     <BrowserRouter>

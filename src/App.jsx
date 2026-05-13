@@ -14,7 +14,7 @@ import './styles/global.css'
 export default function App() {
   const { session, loading, denied, signIn, signOut } = useAuth()
   const { trips, activeTrip, setActiveTrip, createTrip, updateTrip } = useTrip()
-  const { connected: calendarConnected, connect: connectCalendar } = useCalendar()
+  const { connected: calendarConnected, connect: connectCalendar, pushEvent, deleteEvent: deleteCalendarEvent } = useCalendar()
 
   if (loading) return <div className="loading">Loading…</div>
   if (!session) return <Login signIn={signIn} denied={denied} />
@@ -30,7 +30,7 @@ export default function App() {
       <main className="app-main">
         <Routes>
           <Route path="/" element={<Dashboard trip={activeTrip} />} />
-          <Route path="/itinerary" element={<Itinerary trip={activeTrip} />} />
+          <Route path="/itinerary" element={<Itinerary trip={activeTrip} calendarConnected={calendarConnected} pushEvent={pushEvent} deleteCalendarEvent={deleteCalendarEvent} />} />
           <Route path="/wishlist" element={<Wishlist trip={activeTrip} session={session} />} />
           <Route path="/budget" element={<Budget trip={activeTrip} session={session} />} />
           <Route path="/settings" element={<Settings trip={activeTrip} createTrip={createTrip} updateTrip={updateTrip} calendarConnected={calendarConnected} connectCalendar={connectCalendar} />} />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-const EMPTY = { title: '', start_time: '', location: '', notes: '', status: 'tentative' }
+const EMPTY = { title: '', start_time: '', location: '', notes: '', status: 'tentative', item_type: '' }
 
 function loadMapsScript(apiKey) {
   return new Promise((resolve) => {
@@ -25,6 +25,7 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
     location: item.location || '',
     notes: item.notes || '',
     status: item.status,
+    item_type: item.item_type || '',
   } : EMPTY)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -65,7 +66,13 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
   async function onSubmit(e) {
     e.preventDefault()
     setSaving(true)
-    await onSave({ ...form, start_time: form.start_time || null, location: form.location || null, notes: form.notes || null })
+    await onSave({
+      ...form,
+      start_time: form.start_time || null,
+      location: form.location || null,
+      notes: form.notes || null,
+      item_type: form.item_type || null,
+    })
     setSaving(false)
   }
 
@@ -81,6 +88,14 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
           <label>
             Title
             <input name="title" value={form.title} onChange={onChange} required autoFocus placeholder="e.g. Shinjuku walking tour" />
+          </label>
+          <label>
+            Type (optional — required for Calendar sync)
+            <select name="item_type" value={form.item_type} onChange={onChange}>
+              <option value="">None</option>
+              <option value="flight">Flight / Transport</option>
+              <option value="accommodation">Accommodation</option>
+            </select>
           </label>
           <label>
             Time (optional)

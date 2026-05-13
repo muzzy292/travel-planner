@@ -16,15 +16,29 @@ function getDays(start, end) {
   return days
 }
 
-export default function Itinerary({ trip }) {
+function buildCalendarEvent(item, day) {
+  const base = { summary: item.title, description: item.notes || '' }
+  if (item.start_time) {
+    const start = `${day}T${item.start_time}`
+    return { ...base, start: { dateTime: start, timeZone: 'Australia/Sydney' }, end: { dateTime: start, timeZone: 'Australia/Sydney' }, location: item.location || '' }
+  }
+  return { ...base, start: { date: day }, end: { date: day }, location: item.location || '' }
+}
+
+export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCalendarEvent }) {
   const [items, setItems] = useState([])
+  const [calendarEvents, setCalendarEvents] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(null) // { mode: 'add'|'edit', day, item? }
+  const [modal, setModal] = useState(null)
+  const [syncError, setSyncError] = useState(null)
 
   const sensors = useSensors(useSensor(PointerSensor))
 
   useEffect(() => {
-    if (trip) fetchItems()
+    if (trip) {
+      fetchItems()
+      fetchCalendarEvents()
+    }
   }, [trip?.id])
 
   async function fetchItems() {
@@ -37,6 +51,14 @@ export default function Itinerary({ trip }) {
       .order('order_index')
     setItems(data || [])
     setLoading(false)
+  }
+
+  async function fetchCalendarEvents() {
+    const { data } = await supabase
+      .from('calendar_events')
+      .select('*')
+      .eq('trip_id', trip.id)
+    setCalendarEvents(data || [])
   }
 
   async function saveEvent(payload) {
@@ -81,6 +103,29 @@ export default function Itinerary({ trip }) {
     )
   }
 
+  async function handleCalendarSync(item, day) {
+    setSyncError(null)
+    try {
+      const eventPayload = buildCalendarEvent(item, day)
+      await pushEvent(trip.id, item.item_type, item.id, eventPayload)
+      await fetchCalendarEvents()
+    } catch (e) {
+      setSyncError(e.message)
+    }
+  }
+
+  async function handleCalendarDelete(item) {
+    setSyncError(null)
+    const calEvent = calendarEvents.find((e) => e.item_id === item.id)
+    if (!calEvent) return
+    try {
+      await deleteCalendarEvent(calEvent.google_event_id, calEvent.id)
+      setCalendarEvents((prev) => prev.filter((e) => e.id !== calEvent.id))
+    } catch (e) {
+      setSyncError(e.message)
+    }
+  }
+
   if (!trip) return <div className="page"><p>No active trip.</p></div>
   if (loading) return <div className="page"><p>Loading…</p></div>
 
@@ -89,6 +134,7 @@ export default function Itinerary({ trip }) {
   return (
     <div className="page">
       <h2>Itinerary — {trip.name}</h2>
+      {syncError && <p className="error" style={{ marginBottom: '1rem' }}>{syncError}</p>}
       <div className="itinerary-days">
         {days.map((day, i) => {
           const dayItems = items.filter((item) => item.day_date === day).sort((a, b) => a.order_index - b.order_index)
@@ -103,9 +149,19 @@ export default function Itinerary({ trip }) {
                 <SortableContext items={dayItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                   <div className="day-events">
                     {dayItems.length === 0 && <p className="empty-day">No events yet</p>}
-                    {dayItems.map((item) => (
-                      <SortableItem key={item.id} item={item} onEdit={() => setModal({ mode: 'edit', day, item })} />
-                    ))}
+                    {dayItems.map((item) => {
+                      const calEvent = calendarEvents.find((e) => e.item_id === item.id)
+                      return (
+                        <SortableItem
+                          key={item.id}
+                          item={{ ...item, calendar_event_id: calEvent?.id }}
+                          onEdit={() => setModal({ mode: 'edit', day, item })}
+                          onCalendarSync={() => handleCalendarSync(item, day)}
+                          onCalendarDelete={() => handleCalendarDelete(item)}
+                          calendarConnected={calendarConnected}
+                        />
+                      )
+                    })}
                   </div>
                 </SortableContext>
               </DndContext>

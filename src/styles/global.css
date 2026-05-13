@@ -246,6 +246,16 @@ body {
 .discover-address { font-size: 0.78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .discover-types { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; text-transform: capitalize; }
 
+/* Accommodation gap warning */
+.accommodation-gap { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: #fff7ed; border: 1.5px dashed #f97316; border-radius: var(--radius); margin: 0.35rem 0; }
+.gap-icon { font-size: 1.1rem; flex-shrink: 0; }
+.gap-body { flex: 1; display: flex; flex-direction: column; gap: 0.1rem; }
+.gap-title { font-weight: 600; font-size: 0.88rem; color: #c2410c; }
+.gap-dates { font-size: 0.78rem; color: #9a3412; }
+.card-warning { border-color: #f97316; background: #fff7ed; }
+.card-warning .label { color: #c2410c; }
+.card-warning span:last-child { color: #c2410c; font-weight: 700; }
+
 /* Accommodation stay banner in itinerary */
 .stay-banner { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; background: #fffbeb; border: 1px solid #fcd34d; border-radius: var(--radius); text-decoration: none; color: var(--text); font-size: 0.82rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
 .stay-banner:hover { background: #fef3c7; }

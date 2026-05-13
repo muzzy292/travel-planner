@@ -5,6 +5,19 @@ import ParseConfirmationModal from '../components/ParseConfirmationModal'
 
 const TYPES = ['Hotel', 'Airbnb', 'Hostel', 'Resort', 'Apartment', 'Guesthouse', 'Other']
 
+function GapBanner({ gap, onAdd }) {
+  return (
+    <div className="accommodation-gap">
+      <div className="gap-icon">⚠️</div>
+      <div className="gap-body">
+        <span className="gap-title">No accommodation — {gap.nights} night{gap.nights > 1 ? 's' : ''}</span>
+        <span className="gap-dates">{gap.from} → {gap.to}</span>
+      </div>
+      <button className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.3rem 0.7rem' }} onClick={onAdd}>+ Book</button>
+    </div>
+  )
+}
+
 function nightsBetween(checkIn, checkOut) {
   if (!checkIn || !checkOut) return null
   const diff = new Date(checkOut) - new Date(checkIn)
@@ -124,6 +137,49 @@ export default function Accommodation({ trip }) {
   const totalNights = stays.reduce((sum, s) => sum + (nightsBetween(s.check_in_date, s.check_out_date) || 0), 0)
   const totalCost = stays.reduce((sum, s) => sum + (parseFloat(s.price || 0)), 0)
 
+  // Compute accommodation gaps within the trip
+  function getGaps() {
+    const gaps = []
+    const sorted = [...stays].filter((s) => s.check_in_date && s.check_out_date)
+    const tripStart = trip.start_date
+    const tripEnd = trip.end_date
+
+    const checkpoints = [
+      { type: 'trip_start', date: tripStart },
+      ...sorted.flatMap((s) => [
+        { type: 'check_in', date: s.check_in_date },
+        { type: 'check_out', date: s.check_out_date },
+      ]),
+      { type: 'trip_end', date: tripEnd },
+    ]
+
+    // Before first stay
+    if (sorted.length === 0) {
+      const nights = nightsBetween(tripStart, tripEnd)
+      if (nights > 0) gaps.push({ from: tripStart, to: tripEnd, nights, insertAfter: null })
+    } else {
+      // Gap before first stay
+      const first = sorted[0]
+      const beforeNights = nightsBetween(tripStart, first.check_in_date)
+      if (beforeNights > 0) gaps.push({ from: tripStart, to: first.check_in_date, nights: beforeNights, insertAfter: null })
+
+      // Gaps between stays
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const gapNights = nightsBetween(sorted[i].check_out_date, sorted[i + 1].check_in_date)
+        if (gapNights > 0) gaps.push({ from: sorted[i].check_out_date, to: sorted[i + 1].check_in_date, nights: gapNights, insertAfter: sorted[i].id })
+      }
+
+      // Gap after last stay
+      const last = sorted[sorted.length - 1]
+      const afterNights = nightsBetween(last.check_out_date, tripEnd)
+      if (afterNights > 0) gaps.push({ from: last.check_out_date, to: tripEnd, nights: afterNights, insertAfter: last.id })
+    }
+    return gaps
+  }
+
+  const gaps = getGaps()
+  const unbookedNights = gaps.reduce((sum, g) => sum + g.nights, 0)
+
   return (
     <div className="page">
       <div className="page-header">
@@ -141,9 +197,15 @@ export default function Accommodation({ trip }) {
             <span>{stays.length}</span>
           </div>
           <div className="card">
-            <span className="label">Total nights</span>
+            <span className="label">Booked nights</span>
             <span>{totalNights}</span>
           </div>
+          {unbookedNights > 0 && (
+            <div className="card card-warning">
+              <span className="label">Unbooked nights</span>
+              <span>{unbookedNights}</span>
+            </div>
+          )}
           {totalCost > 0 && (
             <div className="card">
               <span className="label">Total cost</span>
@@ -153,15 +215,22 @@ export default function Accommodation({ trip }) {
         </div>
       )}
 
-      {stays.length === 0 && (
+      {stays.length === 0 && gaps.length === 0 && (
         <p className="muted">No accommodation added yet.</p>
       )}
 
       <div className="stays-list">
+        {/* Gap before first stay */}
+        {gaps.filter((g) => g.insertAfter === null).map((gap, i) => (
+          <GapBanner key={`gap-before-${i}`} gap={gap} onAdd={() => setModal({ mode: 'add' })} />
+        ))}
+
         {stays.map((stay) => {
           const nights = nightsBetween(stay.check_in_date, stay.check_out_date)
+          const gapAfter = gaps.find((g) => g.insertAfter === stay.id)
           return (
-            <div key={stay.id} className="stay-card" onClick={() => setModal({ mode: 'edit', item: stay })}>
+            <div key={stay.id}>
+            <div className="stay-card" onClick={() => setModal({ mode: 'edit', item: stay })}>
               <div className="stay-header">
                 <div>
                   <span className="stay-type-badge">{stay.type}</span>
@@ -186,6 +255,8 @@ export default function Accommodation({ trip }) {
               )}
               {stay.notes && <div className="stay-notes">{stay.notes}</div>}
               {stay.url && <a className="stay-url" href={stay.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>View booking</a>}
+            </div>
+            {gapAfter && <GapBanner gap={gapAfter} onAdd={() => setModal({ mode: 'add' })} />}
             </div>
           )
         })}

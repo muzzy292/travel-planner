@@ -14,24 +14,35 @@ const CATEGORY_COLOURS = {
   'Misc': '#94a3b8',
 }
 
+const ITIN_TYPE_CATEGORY = {
+  flight: 'Flights',
+  accommodation: 'Accommodation',
+  activity: 'Activities',
+  transport: 'Transport',
+}
+
 export default function Budget({ trip, session }) {
   const [expenses, setExpenses] = useState([])
+  const [stays, setStays] = useState([])
+  const [itinCosts, setItinCosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [filterCat, setFilterCat] = useState('All')
 
   useEffect(() => {
-    if (trip) fetchExpenses()
+    if (trip) fetchAll()
   }, [trip?.id])
 
-  async function fetchExpenses() {
+  async function fetchAll() {
     setLoading(true)
-    const { data } = await supabase
-      .from('expenses')
-      .select('*')
-      .eq('trip_id', trip.id)
-      .order('date', { ascending: false })
-    setExpenses(data || [])
+    const [expRes, stayRes, itinRes] = await Promise.all([
+      supabase.from('expenses').select('*').eq('trip_id', trip.id).order('date', { ascending: false }),
+      supabase.from('accommodations').select('id, name, check_in_date, price').eq('trip_id', trip.id).not('price', 'is', null),
+      supabase.from('itinerary_items').select('id, title, day_date, item_type, cost').eq('trip_id', trip.id).not('cost', 'is', null),
+    ])
+    setExpenses(expRes.data || [])
+    setStays(stayRes.data || [])
+    setItinCosts(itinRes.data || [])
     setLoading(false)
   }
 
@@ -64,17 +75,54 @@ export default function Budget({ trip, session }) {
   if (!trip) return <div className="page"><p>No active trip.</p></div>
   if (loading) return <div className="page"><p>Loading…</p></div>
 
-  const total = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0)
+  // Build unified rows from all three sources
+  const stayRows = stays.map((s) => ({
+    id: `stay-${s.id}`,
+    source: 'stay',
+    category: 'Accommodation',
+    label: s.name,
+    date: s.check_in_date,
+    amount: parseFloat(s.price),
+  }))
+
+  const itinRows = itinCosts.map((i) => ({
+    id: `itin-${i.id}`,
+    source: 'itinerary',
+    category: ITIN_TYPE_CATEGORY[i.item_type] || 'Misc',
+    label: i.title,
+    date: i.day_date,
+    amount: parseFloat(i.cost),
+  }))
+
+  const expenseRows = expenses.map((e) => ({
+    id: `exp-${e.id}`,
+    source: 'expense',
+    category: e.category,
+    label: e.notes || e.category,
+    date: e.date,
+    amount: parseFloat(e.amount),
+    raw: e,
+  }))
+
+  const allRows = [...stayRows, ...itinRows, ...expenseRows]
+  const total = allRows.reduce((sum, r) => sum + r.amount, 0)
   const budget = parseFloat(trip.budget || 0)
   const remaining = budget - total
   const pct = budget > 0 ? Math.min(100, (total / budget) * 100) : 0
 
   const byCategory = CATEGORIES.map((cat) => {
-    const catTotal = expenses.filter((e) => e.category === cat).reduce((s, e) => s + parseFloat(e.amount), 0)
+    const catTotal = allRows.filter((r) => r.category === cat).reduce((s, r) => s + r.amount, 0)
     return { cat, total: catTotal }
   }).filter((c) => c.total > 0)
 
-  const filtered = filterCat === 'All' ? expenses : expenses.filter((e) => e.category === filterCat)
+  const filtered = filterCat === 'All' ? allRows : allRows.filter((r) => r.category === filterCat)
+  const filteredSorted = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date))
+
+  const SOURCE_BADGE = {
+    stay: { label: 'Stay', bg: '#fef3c7', color: '#92400e' },
+    itinerary: { label: 'Itinerary', bg: '#eff6ff', color: '#1d4ed8' },
+    expense: { label: 'Expense', bg: '#f0fdf4', color: '#166534' },
+  }
 
   return (
     <div className="page">
@@ -83,7 +131,6 @@ export default function Budget({ trip, session }) {
         <button className="btn" onClick={() => setModal({ mode: 'add' })}>+ Add expense</button>
       </div>
 
-      {/* Summary */}
       <div className="budget-summary">
         <div className="budget-totals">
           <div className="card">
@@ -115,7 +162,6 @@ export default function Budget({ trip, session }) {
           </div>
         )}
 
-        {/* Category breakdown */}
         {byCategory.length > 0 && (
           <div className="category-breakdown">
             <h3>By category</h3>
@@ -137,9 +183,8 @@ export default function Budget({ trip, session }) {
         )}
       </div>
 
-      {/* Expense list */}
       <div className="expense-list-header">
-        <h3>Expenses</h3>
+        <h3>All costs</h3>
         <div className="filter-bar" style={{ marginBottom: 0 }}>
           <button className={`filter-btn ${filterCat === 'All' ? 'active' : ''}`} onClick={() => setFilterCat('All')}>All</button>
           {CATEGORIES.map((cat) => (
@@ -148,20 +193,30 @@ export default function Budget({ trip, session }) {
         </div>
       </div>
 
-      {filtered.length === 0 && <p className="muted" style={{ marginTop: '0.75rem' }}>No expenses yet.</p>}
+      {filteredSorted.length === 0 && <p className="muted" style={{ marginTop: '0.75rem' }}>No costs yet.</p>}
 
       <div className="expense-list">
-        {filtered.map((exp) => (
-          <div key={exp.id} className="expense-row" onClick={() => setModal({ mode: 'edit', item: exp })}>
-            <div className="expense-dot" style={{ background: CATEGORY_COLOURS[exp.category] }} />
-            <div className="expense-info">
-              <span className="expense-cat">{exp.category}</span>
-              {exp.notes && <span className="expense-notes">{exp.notes}</span>}
-              <span className="expense-meta">{exp.date} · {exp.paid_by?.split('@')[0]}</span>
+        {filteredSorted.map((row) => {
+          const badge = SOURCE_BADGE[row.source]
+          return (
+            <div
+              key={row.id}
+              className={`expense-row ${row.source === 'expense' ? 'clickable' : ''}`}
+              onClick={() => row.source === 'expense' && setModal({ mode: 'edit', item: row.raw })}
+            >
+              <div className="expense-dot" style={{ background: CATEGORY_COLOURS[row.category] }} />
+              <div className="expense-info">
+                <span className="expense-cat">{row.category}</span>
+                {row.label && row.label !== row.category && <span className="expense-notes">{row.label}</span>}
+                <span className="expense-meta">
+                  {row.date}
+                  <span className="source-badge" style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
+                </span>
+              </div>
+              <span className="expense-amount">${row.amount.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</span>
             </div>
-            <span className="expense-amount">${parseFloat(exp.amount).toLocaleString('en-AU', { minimumFractionDigits: 2 })}</span>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {modal && (

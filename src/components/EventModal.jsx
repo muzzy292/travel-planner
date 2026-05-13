@@ -1,6 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const EMPTY = { title: '', start_time: '', location: '', notes: '', status: 'tentative' }
+
+function loadMapsScript(apiKey) {
+  return new Promise((resolve) => {
+    if (window.google?.maps?.places) return resolve()
+    if (document.getElementById('maps-script')) {
+      document.getElementById('maps-script').addEventListener('load', resolve)
+      return
+    }
+    const script = document.createElement('script')
+    script.id = 'maps-script'
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
+    script.async = true
+    script.onload = resolve
+    document.body.appendChild(script)
+  })
+}
 
 export default function EventModal({ mode, day, item, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(mode === 'edit' ? {
@@ -12,8 +28,35 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
   } : EMPTY)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const locationRef = useRef(null)
+  const autocompleteRef = useRef(null)
 
   const label = new Date(day + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  useEffect(() => {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+    if (!apiKey || !locationRef.current) return
+
+    loadMapsScript(apiKey).then(() => {
+      if (!locationRef.current) return
+      autocompleteRef.current = new window.google.maps.places.Autocomplete(locationRef.current, {
+        fields: ['formatted_address', 'name'],
+      })
+      autocompleteRef.current.addListener('place_changed', () => {
+        const place = autocompleteRef.current.getPlace()
+        const value = place.name && place.formatted_address
+          ? `${place.name}, ${place.formatted_address}`
+          : place.formatted_address || place.name || ''
+        setForm((prev) => ({ ...prev, location: value }))
+      })
+    })
+
+    return () => {
+      if (autocompleteRef.current) {
+        window.google.maps.event.clearInstanceListeners(autocompleteRef.current)
+      }
+    }
+  }, [])
 
   function onChange(e) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
@@ -45,7 +88,14 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
           </label>
           <label>
             Location (optional)
-            <input name="location" value={form.location} onChange={onChange} placeholder="e.g. Shinjuku Station East Exit" />
+            <input
+              ref={locationRef}
+              name="location"
+              value={form.location}
+              onChange={onChange}
+              placeholder="Search for a place…"
+              autoComplete="off"
+            />
           </label>
           <label>
             Notes (optional)

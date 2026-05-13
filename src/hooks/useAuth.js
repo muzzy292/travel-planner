@@ -12,18 +12,19 @@ export function useAuth() {
   const [denied, setDenied] = useState(false)
 
   useEffect(() => {
-    const hasCode = new URLSearchParams(window.location.search).has('code')
+    const hasHashToken = window.location.hash.includes('access_token')
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Skip the initial null session while PKCE code exchange is in progress
-      if (hasCode && event === 'INITIAL_SESSION' && !session) return
+      // While hash token is being processed, skip the null initial session
+      if (hasHashToken && event === 'INITIAL_SESSION' && !session) return
       handleSession(session)
-      if (hasCode && session) {
+      if (hasHashToken && session) {
         window.history.replaceState(null, '', window.location.pathname)
       }
     })
 
-    if (!hasCode) {
+    // Only call getSession if there is no incoming OAuth token in the URL
+    if (!hasHashToken) {
       supabase.auth.getSession().then(({ data: { session } }) => {
         handleSession(session)
       })

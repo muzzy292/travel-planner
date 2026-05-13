@@ -40,15 +40,24 @@ export default async function handler(req) {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 })
   }
 
-  const { text, tripStartDate, tripEndDate } = body
-  if (!text?.trim()) {
-    return new Response(JSON.stringify({ error: 'No text provided' }), { status: 400 })
+  const { text, images, tripStartDate, tripEndDate } = body
+  if (!text?.trim() && (!images || images.length === 0)) {
+    return new Response(JSON.stringify({ error: 'No text or images provided' }), { status: 400 })
   }
 
-  const userPrompt = `Trip date range: ${tripStartDate} to ${tripEndDate}
+  const textPrompt = `Trip date range: ${tripStartDate} to ${tripEndDate}${text?.trim() ? `\n\nConfirmation text:\n${text.slice(0, 6000)}` : ''}`
 
-Confirmation text:
-${text.slice(0, 8000)}`
+  // Build content array: images first, then text
+  const content = []
+  if (images?.length > 0) {
+    for (const img of images.slice(0, 5)) { // max 5 images
+      content.push({
+        type: 'image',
+        source: { type: 'base64', media_type: img.mediaType, data: img.base64 },
+      })
+    }
+  }
+  content.push({ type: 'text', text: textPrompt })
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -62,7 +71,7 @@ ${text.slice(0, 8000)}`
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 2048,
         system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userPrompt }],
+        messages: [{ role: 'user', content }],
       }),
     })
 

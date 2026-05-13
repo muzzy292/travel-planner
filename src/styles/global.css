@@ -244,6 +244,14 @@ body {
 .discover-address { font-size: 0.78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .discover-types { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; text-transform: capitalize; }
 
+/* Accommodation stay banner in itinerary */
+.stay-banner { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.75rem; background: #fffbeb; border: 1px solid #fcd34d; border-radius: var(--radius); text-decoration: none; color: var(--text); font-size: 0.82rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
+.stay-banner:hover { background: #fef3c7; }
+.stay-banner-icon { flex-shrink: 0; }
+.stay-banner-name { font-weight: 600; }
+.stay-banner-label { color: #92400e; font-size: 0.78rem; background: #fde68a; border-radius: 3px; padding: 0.1rem 0.35rem; }
+.stay-banner-address { color: var(--muted); font-size: 0.78rem; width: 100%; padding-left: 1.25rem; }
+
 /* Itinerary item actions */
 .item-actions { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; flex-shrink: 0; }
 .item-link-btn { font-size: 0.75rem; padding: 0.25rem 0.5rem; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); cursor: pointer; text-decoration: none; white-space: nowrap; transition: background 0.15s; }

@@ -28,6 +28,7 @@ function buildCalendarEvent(item, day) {
 
 export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCalendarEvent }) {
   const [items, setItems] = useState([])
+  const [stays, setStays] = useState([])
   const [calendarEvents, setCalendarEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
@@ -40,6 +41,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     if (trip) {
       fetchItems()
       fetchCalendarEvents()
+      fetchStays()
     }
   }, [trip?.id])
 
@@ -53,6 +55,15 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
       .order('order_index')
     setItems(data || [])
     setLoading(false)
+  }
+
+  async function fetchStays() {
+    const { data } = await supabase
+      .from('accommodations')
+      .select('id, name, type, check_in_date, check_out_date, check_in_time, check_out_time, address')
+      .eq('trip_id', trip.id)
+      .order('check_in_date')
+    setStays(data || [])
   }
 
   async function fetchCalendarEvents() {
@@ -164,6 +175,16 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
 
   const days = getDays(trip.start_date, trip.end_date)
 
+  function staysForDay(day) {
+    return stays.filter((s) => s.check_in_date <= day && s.check_out_date >= day)
+  }
+
+  function stayLabel(stay, day) {
+    if (day === stay.check_in_date) return `Check-in${stay.check_in_time ? ` at ${stay.check_in_time.slice(0, 5)}` : ''}`
+    if (day === stay.check_out_date) return `Check-out${stay.check_out_time ? ` at ${stay.check_out_time.slice(0, 5)}` : ''}`
+    return 'Staying'
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -181,6 +202,14 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
                 <span className="day-label">Day {i + 1} — {label}</span>
                 <button className="btn-add" onClick={() => setModal({ mode: 'add', day })}>+ Add</button>
               </div>
+              {staysForDay(day).map((stay) => (
+                <a key={stay.id} className="stay-banner" href="/accommodation" title="View in Stays">
+                  <span className="stay-banner-icon">🏨</span>
+                  <span className="stay-banner-name">{stay.name}</span>
+                  <span className="stay-banner-label">{stayLabel(stay, day)}</span>
+                  {stay.address && <span className="stay-banner-address">📍 {stay.address}</span>}
+                </a>
+              ))}
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, day)}>
                 <SortableContext items={dayItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                   <div className="day-events">

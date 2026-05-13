@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const TYPE_LABELS = {
   flight: '✈ Flight',
@@ -27,6 +27,20 @@ export default function ParseConfirmationModal({ trip, onImport, onClose }) {
   const [results, setResults] = useState(null)
   const [selected, setSelected] = useState([])
   const fileRef = useRef(null)
+  const modalRef = useRef(null)
+
+  useEffect(() => {
+    function onPaste(e) {
+      const items = Array.from(e.clipboardData?.items || [])
+      const imageItems = items.filter((item) => ACCEPTED_TYPES.includes(item.type))
+      if (imageItems.length === 0) return
+      e.preventDefault()
+      handleFiles(imageItems.map((item) => item.getAsFile()))
+    }
+    const el = modalRef.current
+    if (el) el.addEventListener('paste', onPaste)
+    return () => { if (el) el.removeEventListener('paste', onPaste) }
+  }, [])
 
   async function handleFiles(files) {
     const valid = Array.from(files).filter((f) => ACCEPTED_TYPES.includes(f.type))
@@ -95,7 +109,7 @@ export default function ParseConfirmationModal({ trip, onImport, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-wide" ref={modalRef} onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Import from confirmation</h3>
           <button className="modal-close" onClick={onClose}>×</button>
@@ -115,7 +129,7 @@ export default function ParseConfirmationModal({ trip, onImport, onClose }) {
               onClick={() => fileRef.current?.click()}
             >
               {images.length === 0 ? (
-                <span className="muted small">📎 Drop images here or click to upload</span>
+                <span className="muted small">📋 Paste a screenshot (Ctrl+V) or drag &amp; drop an image</span>
               ) : (
                 <div className="image-previews">
                   {images.map((img, i) => (

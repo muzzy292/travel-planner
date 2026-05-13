@@ -135,6 +135,18 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     }
   }
 
+  async function handleLogToBudget(item) {
+    const categoryMap = { flight: 'Flights', accommodation: 'Accommodation', activity: 'Activities', transport: 'Transport' }
+    const category = categoryMap[item.item_type] || 'Misc'
+    await supabase.from('expenses').insert({
+      trip_id: trip.id,
+      category,
+      amount: item.cost,
+      date: item.day_date,
+      notes: item.title,
+    })
+  }
+
   async function handleCalendarDelete(item) {
     setSyncError(null)
     const calEvent = calendarEvents.find((e) => e.item_id === item.id)
@@ -182,6 +194,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
                           onEdit={() => setModal({ mode: 'edit', day, item })}
                           onCalendarSync={() => handleCalendarSync(item, day)}
                           onCalendarDelete={() => handleCalendarDelete(item)}
+                          onLogToBudget={() => handleLogToBudget(item)}
                           calendarConnected={calendarConnected}
                         />
                       )

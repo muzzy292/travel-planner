@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-const EMPTY = { title: '', start_time: '', location: '', notes: '', status: 'tentative', item_type: '' }
+const EMPTY = { title: '', start_time: '', location: '', notes: '', status: 'tentative', item_type: '', cost: '' }
 
 function loadMapsScript(apiKey) {
   return new Promise((resolve) => {
@@ -26,6 +26,7 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
     notes: item.notes || '',
     status: item.status,
     item_type: item.item_type || '',
+    cost: item.cost != null ? String(item.cost) : '',
   } : EMPTY)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -72,6 +73,7 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
       location: form.location || null,
       notes: form.notes || null,
       item_type: form.item_type || null,
+      cost: form.cost !== '' ? parseFloat(form.cost) : null,
     })
     setSaving(false)
   }
@@ -122,6 +124,10 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
               <option value="tentative">Tentative</option>
               <option value="confirmed">Confirmed</option>
             </select>
+          </label>
+          <label>
+            Cost AUD (optional)
+            <input type="number" name="cost" value={form.cost} onChange={onChange} placeholder="e.g. 350" min="0" step="0.01" />
           </label>
           <div className="modal-actions">
             <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>

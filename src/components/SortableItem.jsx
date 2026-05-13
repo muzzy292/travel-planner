@@ -1,7 +1,9 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarDelete, calendarConnected }) {
+const TYPE_ICONS = { flight: '✈', accommodation: '🏨', activity: '🎯', transport: '🚌' }
+
+export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarDelete, onLogToBudget, calendarConnected }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
 
   const style = {
@@ -12,6 +14,7 @@ export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarD
 
   const isSynced = !!item.calendar_event_id
   const canSync = item.item_type === 'flight' || item.item_type === 'accommodation'
+  const isAccommodation = item.item_type === 'accommodation'
 
   return (
     <div ref={setNodeRef} style={style} className={`event-item ${item.status}`}>
@@ -20,15 +23,18 @@ export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarD
         <div className="event-title">
           {item.start_time && <span className="event-time">{item.start_time.slice(0, 5)}</span>}
           <span>{item.title}</span>
-          {item.item_type && <span className="type-badge">{item.item_type === 'flight' ? '✈' : '🏨'}</span>}
+          {item.item_type && <span className="type-badge">{TYPE_ICONS[item.item_type] || '📌'}</span>}
           <span className={`status-badge ${item.status}`}>{item.status}</span>
         </div>
         {item.location && <div className="event-location">📍 {item.location}</div>}
         {item.notes && <div className="event-notes">{item.notes}</div>}
+        {item.cost != null && (
+          <div className="event-cost">${parseFloat(item.cost).toLocaleString('en-AU', { minimumFractionDigits: 2 })}</div>
+        )}
       </div>
-      {canSync && (
-        <div className="cal-actions" onClick={(e) => e.stopPropagation()}>
-          {isSynced ? (
+      <div className="item-actions" onClick={(e) => e.stopPropagation()}>
+        {canSync && (
+          isSynced ? (
             <button className="cal-btn synced" onClick={onCalendarDelete} title="Remove from Google Calendar">🗓 Synced</button>
           ) : (
             <button
@@ -36,12 +42,16 @@ export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarD
               onClick={onCalendarSync}
               disabled={!calendarConnected}
               title={calendarConnected ? 'Add to Google Calendar' : 'Connect Google Calendar in Settings first'}
-            >
-              🗓 Sync
-            </button>
-          )}
-        </div>
-      )}
+            >🗓 Sync</button>
+          )
+        )}
+        {isAccommodation && (
+          <a className="item-link-btn" href="/accommodation" title="View in Stays">🏨 Stay</a>
+        )}
+        {item.cost != null && (
+          <button className="item-link-btn" onClick={onLogToBudget} title="Log to budget">💰 Budget</button>
+        )}
+      </div>
     </div>
   )
 }

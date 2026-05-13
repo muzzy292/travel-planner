@@ -3,7 +3,7 @@ import { CSS } from '@dnd-kit/utilities'
 
 const TYPE_ICONS = { flight: '✈', accommodation: '🏨', activity: '🎯', transport: '🚌' }
 
-export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarDelete, onLogToBudget, calendarConnected }) {
+export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarDelete, onLogToBudget, onAddToStays, calendarConnected }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
 
   const style = {
@@ -46,7 +46,7 @@ export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarD
           )
         )}
         {isAccommodation && (
-          <a className="item-link-btn" href="/accommodation" title="View in Stays">🏨 Stay</a>
+          <button className="item-link-btn" onClick={onAddToStays} title="Add to Stays">🏨 Add stay</button>
         )}
         {item.cost != null && (
           <button className="item-link-btn" onClick={onLogToBudget} title="Log to budget">💰 Budget</button>

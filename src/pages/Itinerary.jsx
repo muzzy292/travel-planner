@@ -5,6 +5,9 @@ import { supabase } from '../lib/supabase'
 import SortableItem from '../components/SortableItem'
 import EventModal from '../components/EventModal'
 import ParseConfirmationModal from '../components/ParseConfirmationModal'
+import AccommodationModal from '../components/AccommodationModal'
+
+const STAY_TYPES = ['Hotel', 'Airbnb', 'Hostel', 'Resort', 'Apartment', 'Guesthouse', 'Other']
 
 function getDays(start, end) {
   const days = []
@@ -32,6 +35,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
   const [calendarEvents, setCalendarEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
+  const [stayModal, setStayModal] = useState(null)
   const [showParse, setShowParse] = useState(false)
   const [syncError, setSyncError] = useState(null)
 
@@ -146,6 +150,29 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     }
   }
 
+  function handleAddToStays(item) {
+    const nextDay = new Date(item.day_date + 'T00:00:00')
+    nextDay.setDate(nextDay.getDate() + 1)
+    setStayModal({
+      name: item.title,
+      address: item.location || '',
+      check_in_date: item.day_date,
+      check_out_date: nextDay.toISOString().slice(0, 10),
+      notes: item.notes || '',
+      price: item.cost != null ? String(item.cost) : '',
+    })
+  }
+
+  async function saveStayFromItinerary(payload) {
+    const { data, error } = await supabase
+      .from('accommodations')
+      .insert({ ...payload, trip_id: trip.id })
+      .select()
+      .single()
+    if (!error && data) setStays((prev) => [...prev, data].sort((a, b) => new Date(a.check_in_date) - new Date(b.check_in_date)))
+    setStayModal(null)
+  }
+
   async function handleLogToBudget(item) {
     const categoryMap = { flight: 'Flights', accommodation: 'Accommodation', activity: 'Activities', transport: 'Transport' }
     const category = categoryMap[item.item_type] || 'Misc'
@@ -224,6 +251,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
                           onCalendarSync={() => handleCalendarSync(item, day)}
                           onCalendarDelete={() => handleCalendarDelete(item)}
                           onLogToBudget={() => handleLogToBudget(item)}
+                          onAddToStays={() => handleAddToStays(item)}
                           calendarConnected={calendarConnected}
                         />
                       )
@@ -243,6 +271,16 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
           onSave={saveEvent}
           onDelete={deleteEvent}
           onClose={() => setModal(null)}
+        />
+      )}
+      {stayModal && (
+        <AccommodationModal
+          mode="add"
+          types={STAY_TYPES}
+          trip={trip}
+          prefill={stayModal}
+          onSave={saveStayFromItinerary}
+          onClose={() => setStayModal(null)}
         />
       )}
       {showParse && (

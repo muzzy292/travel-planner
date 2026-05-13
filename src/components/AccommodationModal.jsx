@@ -18,7 +18,7 @@ function loadMapsScript(apiKey) {
   })
 }
 
-export default function AccommodationModal({ mode, item, types, trip, onSave, onDelete, onClose }) {
+export default function AccommodationModal({ mode, item, types, trip, prefill, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(mode === 'edit' ? {
     name: item.name,
     type: item.type || 'Hotel',
@@ -31,7 +31,7 @@ export default function AccommodationModal({ mode, item, types, trip, onSave, on
     notes: item.notes || '',
     url: item.url || '',
     price: item.price || '',
-  } : { ...EMPTY, check_in_date: trip.start_date, check_out_date: trip.end_date })
+  } : { ...EMPTY, check_in_date: trip.start_date, check_out_date: trip.end_date, ...prefill })
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const addressRef = useRef(null)

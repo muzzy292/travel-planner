@@ -4,7 +4,6 @@ import { supabase } from '../lib/supabase'
 
 function DestinationClock({ timezone }) {
   const [time, setTime] = useState('')
-
   useEffect(() => {
     if (!timezone) return
     function tick() {
@@ -14,37 +13,107 @@ function DestinationClock({ timezone }) {
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)
   }, [timezone])
-
   if (!timezone || !time) return null
-
   const tzLabel = timezone.split('/').pop().replace(/_/g, ' ')
   return (
-    <div className="card destination-clock">
-      <span className="label">Time in {tzLabel}</span>
-      <span className="clock-time">{time}</span>
+    <div className="db-clock">
+      <span className="db-clock-label">🕐 {tzLabel}</span>
+      <span className="db-clock-time">{time}</span>
     </div>
   )
 }
 
+function TripStatus({ trip }) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const start = new Date(trip.start_date + 'T00:00:00')
+  const end = new Date(trip.end_date + 'T00:00:00')
+  const totalDays = Math.round((end - start) / 86400000) + 1
+
+  if (today < start) {
+    const daysTo = Math.round((start - today) / 86400000)
+    const pct = 0
+    return (
+      <div className="db-hero">
+        <div className="db-hero-label">Countdown</div>
+        <div className="db-hero-number">{daysTo}</div>
+        <div className="db-hero-sub">days to go</div>
+        <div className="db-hero-dates">
+          {start.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })} →{' '}
+          {end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+          {' · '}{totalDays} days
+        </div>
+      </div>
+    )
+  }
+
+  if (today <= end) {
+    const dayNum = Math.round((today - start) / 86400000) + 1
+    const pct = Math.min(100, (dayNum / totalDays) * 100)
+    const daysLeft = Math.round((end - today) / 86400000)
+    return (
+      <div className="db-hero db-hero-active">
+        <div className="db-hero-label">You're on your trip!</div>
+        <div className="db-hero-number">Day {dayNum}<span className="db-hero-of"> / {totalDays}</span></div>
+        <div className="db-hero-sub">{daysLeft} day{daysLeft !== 1 ? 's' : ''} remaining</div>
+        <div className="db-trip-bar">
+          <div className="db-trip-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="db-hero-dates">
+          {end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="db-hero db-hero-done">
+      <div className="db-hero-label">Trip complete</div>
+      <div className="db-hero-number">✓</div>
+      <div className="db-hero-sub">{trip.destination}</div>
+      <div className="db-hero-dates">
+        {start.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })} –{' '}
+        {end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+      </div>
+    </div>
+  )
+}
+
+const TYPE_ICONS = { flight: '✈', accommodation: '🏨', activity: '🎯', transport: '🚌' }
+
 export default function Dashboard({ trip }) {
-  const [spent, setSpent] = useState(null)
-  const [itineraryCount, setItineraryCount] = useState(null)
-  const [wishlistCount, setWishlistCount] = useState(null)
-  const [staysCount, setStaysCount] = useState(null)
+  const [upcomingItems, setUpcomingItems] = useState(null)
+  const [budgetData, setBudgetData] = useState(null)
 
   useEffect(() => {
     if (!trip) return
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const fromDate = today < new Date(trip.start_date + 'T00:00:00') ? trip.start_date : today.toISOString().slice(0, 10)
+
     Promise.all([
+      // Next 6 itinerary items from today (or trip start)
+      supabase
+        .from('itinerary_items')
+        .select('id, title, day_date, start_time, item_type, status')
+        .eq('trip_id', trip.id)
+        .gte('day_date', fromDate)
+        .order('day_date')
+        .order('order_index')
+        .limit(6),
+
+      // Budget: expenses + stay prices + itinerary costs
       supabase.from('expenses').select('amount').eq('trip_id', trip.id),
-      supabase.from('itinerary_items').select('id', { count: 'exact' }).eq('trip_id', trip.id),
-      supabase.from('wishlist_items').select('id', { count: 'exact' }).eq('trip_id', trip.id),
-      supabase.from('accommodations').select('id', { count: 'exact' }).eq('trip_id', trip.id),
-    ]).then(([expenses, itinerary, wishlist, stays]) => {
-      const total = (expenses.data || []).reduce((s, e) => s + parseFloat(e.amount), 0)
-      setSpent(total)
-      setItineraryCount(itinerary.count ?? 0)
-      setWishlistCount(wishlist.count ?? 0)
-      setStaysCount(stays.count ?? 0)
+      supabase.from('accommodations').select('price').eq('trip_id', trip.id).not('price', 'is', null),
+      supabase.from('itinerary_items').select('cost').eq('trip_id', trip.id).not('cost', 'is', null),
+    ]).then(([itin, expenses, stays, itinCosts]) => {
+      setUpcomingItems(itin.data || [])
+
+      const expTotal = (expenses.data || []).reduce((s, e) => s + parseFloat(e.amount), 0)
+      const stayTotal = (stays.data || []).reduce((s, e) => s + parseFloat(e.price), 0)
+      const itinTotal = (itinCosts.data || []).reduce((s, e) => s + parseFloat(e.cost), 0)
+      setBudgetData({ total: expTotal + stayTotal + itinTotal })
     })
   }, [trip?.id])
 
@@ -52,75 +121,113 @@ export default function Dashboard({ trip }) {
     return (
       <div className="page">
         <h2>No trips yet</h2>
-        <p><Link to="/settings">Create your first trip</Link></p>
+        <p className="muted" style={{ marginTop: '0.5rem' }}>
+          <Link to="/settings">Create your first trip →</Link>
+        </p>
       </div>
     )
   }
 
-  const today = new Date()
-  const start = new Date(trip.start_date + 'T00:00:00')
-  const end = new Date(trip.end_date + 'T00:00:00')
-  const totalDays = Math.ceil((end - start) / 86400000) + 1
-  const daysRemaining = Math.max(0, Math.ceil((end - today) / 86400000))
   const budget = parseFloat(trip.budget || 0)
+  const spent = budgetData?.total ?? null
+  const remaining = budget > 0 && spent !== null ? budget - spent : null
   const pct = budget > 0 && spent !== null ? Math.min(100, (spent / budget) * 100) : 0
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  function formatDay(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00')
+    d.setHours(0, 0, 0, 0)
+    const diff = Math.round((d - today) / 86400000)
+    if (diff === 0) return 'Today'
+    if (diff === 1) return 'Tomorrow'
+    return d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+  }
+
+  // Group upcoming items by date
+  const grouped = []
+  if (upcomingItems) {
+    for (const item of upcomingItems) {
+      const last = grouped[grouped.length - 1]
+      if (last && last.date === item.day_date) {
+        last.items.push(item)
+      } else {
+        grouped.push({ date: item.day_date, items: [item] })
+      }
+    }
+  }
 
   return (
     <div className="page">
-      <h2>{trip.name}</h2>
-      <p className="destination">{trip.destination}</p>
-
-      <div className="summary-cards">
-        <div className="card">
-          <span className="label">Dates</span>
-          <span>{start.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })} – {end.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-        </div>
-        <div className="card">
-          <span className="label">Duration</span>
-          <span>{totalDays} days</span>
-        </div>
-        <div className="card">
-          <span className="label">Days Remaining</span>
-          <span>{daysRemaining}</span>
+      <div className="db-header">
+        <div>
+          <h2>{trip.name}</h2>
+          <p className="destination">{trip.destination}</p>
         </div>
         <DestinationClock timezone={trip.timezone} />
-        <div className="card">
-          <span className="label">Itinerary events</span>
-          <span>{itineraryCount ?? '…'}</span>
-        </div>
-        <div className="card">
-          <span className="label">Wishlist ideas</span>
-          <span>{wishlistCount ?? '…'}</span>
-        </div>
-        <div className="card">
-          <span className="label">Stays</span>
-          <span>{staysCount ?? '…'}</span>
-        </div>
       </div>
 
-      {budget > 0 && spent !== null && (
-        <div className="dashboard-budget">
-          <div className="dashboard-budget-row">
-            <span className="label">Budget</span>
-            <span className="db-numbers">
-              <span className="db-spent">${spent.toLocaleString('en-AU', { minimumFractionDigits: 2 })} spent</span>
-              <span className="db-sep"> / </span>
-              <span>${budget.toLocaleString('en-AU', { minimumFractionDigits: 2 })} total</span>
-            </span>
+      <TripStatus trip={trip} />
+
+      {/* Upcoming itinerary */}
+      <div className="db-section">
+        <div className="db-section-header">
+          <h3>Upcoming</h3>
+          <Link to="/itinerary" className="db-section-link">View all →</Link>
+        </div>
+        {upcomingItems === null && <p className="muted small">Loading…</p>}
+        {upcomingItems !== null && upcomingItems.length === 0 && (
+          <p className="muted small">No upcoming events. <Link to="/itinerary">Add to itinerary →</Link></p>
+        )}
+        {grouped.map(({ date, items }) => (
+          <div key={date} className="db-day-group">
+            <div className="db-day-label">{formatDay(date)}</div>
+            {items.map((item) => (
+              <div key={item.id} className={`db-event ${item.status}`}>
+                <span className="db-event-icon">{TYPE_ICONS[item.item_type] || '📌'}</span>
+                <span className="db-event-title">{item.title}</span>
+                {item.start_time && <span className="db-event-time">{item.start_time.slice(0, 5)}</span>}
+              </div>
+            ))}
           </div>
-          <div className="progress-bar">
-            <div className={`progress-fill ${pct >= 100 ? 'over-budget' : pct >= 80 ? 'warning' : ''}`} style={{ width: `${pct}%` }} />
+        ))}
+      </div>
+
+      {/* Budget snapshot */}
+      {budget > 0 && spent !== null && (
+        <div className="db-section">
+          <div className="db-section-header">
+            <h3>Budget</h3>
+            <Link to="/budget" className="db-section-link">View all →</Link>
+          </div>
+          <div className="db-budget">
+            <div className="db-budget-row">
+              <div className="db-budget-stat">
+                <span className="label">Spent</span>
+                <span className="db-budget-amount">${spent.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="db-budget-stat">
+                <span className="label">Remaining</span>
+                <span className={`db-budget-amount ${remaining < 0 ? 'over' : ''}`}>
+                  ${Math.abs(remaining).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+                  {remaining < 0 && ' over'}
+                </span>
+              </div>
+              <div className="db-budget-stat">
+                <span className="label">Budget</span>
+                <span className="db-budget-amount">${budget.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+            <div className="db-budget-bar-wrap">
+              <div className="progress-bar">
+                <div className={`progress-fill ${pct >= 100 ? 'over-budget' : pct >= 80 ? 'warning' : ''}`} style={{ width: `${pct}%` }} />
+              </div>
+              <span className="db-budget-pct">{pct.toFixed(0)}%</span>
+            </div>
           </div>
         </div>
       )}
-
-      <nav className="quick-links">
-        <Link to="/itinerary" className="btn">Itinerary</Link>
-        <Link to="/accommodation" className="btn">Accommodation</Link>
-        <Link to="/wishlist" className="btn">Wishlist</Link>
-        <Link to="/budget" className="btn">Budget</Link>
-        <Link to="/settings" className="btn">Settings</Link>
-      </nav>
     </div>
   )
 }

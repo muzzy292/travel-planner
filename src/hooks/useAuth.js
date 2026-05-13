@@ -12,25 +12,27 @@ export function useAuth() {
   const [denied, setDenied] = useState(false)
 
   useEffect(() => {
-    const hasHashToken = window.location.hash.includes('access_token')
+    const hash = window.location.hash
+    const params = new URLSearchParams(hash.slice(1))
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // While hash token is being processed, skip the null initial session
-      if (hasHashToken && event === 'INITIAL_SESSION' && !session) return
-      handleSession(session)
-      if (hasHashToken && session) {
-        window.history.replaceState(null, '', window.location.pathname)
-      }
-    })
-
-    // Only call getSession if there is no incoming OAuth token in the URL
-    if (!hasHashToken) {
+    if (accessToken && refreshToken) {
+      // Manually exchange hash tokens into a Supabase session
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ data }) => {
+          handleSession(data.session)
+          window.history.replaceState(null, '', window.location.pathname)
+        })
+    } else {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        handleSession(session)
+      })
       supabase.auth.getSession().then(({ data: { session } }) => {
         handleSession(session)
       })
+      return () => subscription.unsubscribe()
     }
-
-    return () => subscription.unsubscribe()
   }, [])
 
   function handleSession(session) {

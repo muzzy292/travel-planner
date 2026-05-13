@@ -84,7 +84,8 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
         .insert({ ...payload, trip_id: trip.id, day_date: modal.day, order_index: dayItems.length })
         .select()
         .single()
-      if (!error) setItems((prev) => [...prev, data])
+      if (error) return error.message
+      setItems((prev) => [...prev, data])
     } else {
       const { data, error } = await supabase
         .from('itinerary_items')
@@ -92,9 +93,11 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
         .eq('id', modal.item.id)
         .select()
         .single()
-      if (!error) setItems((prev) => prev.map((i) => (i.id === modal.item.id ? data : i)))
+      if (error) return error.message
+      setItems((prev) => prev.map((i) => (i.id === modal.item.id ? data : i)))
     }
     setModal(null)
+    return null
   }
 
   async function deleteEvent(id) {

@@ -29,6 +29,7 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
     cost: item.cost != null ? String(item.cost) : '',
   } : EMPTY)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const locationRef = useRef(null)
   const autocompleteRef = useRef(null)
@@ -67,7 +68,8 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
   async function onSubmit(e) {
     e.preventDefault()
     setSaving(true)
-    await onSave({
+    setSaveError(null)
+    const error = await onSave({
       ...form,
       start_time: form.start_time || null,
       location: form.location || null,
@@ -75,6 +77,7 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
       item_type: form.item_type || null,
       cost: form.cost !== '' ? parseFloat(form.cost) : null,
     })
+    if (error) setSaveError(error)
     setSaving(false)
   }
 
@@ -129,6 +132,7 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
             Cost AUD (optional)
             <input type="number" name="cost" value={form.cost} onChange={onChange} placeholder="e.g. 350" min="0" step="0.01" />
           </label>
+          {saveError && <p className="error" style={{ marginTop: '0.5rem' }}>{saveError}</p>}
           <div className="modal-actions">
             <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
             {mode === 'edit' && !confirmDelete && (

@@ -2,10 +2,35 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
+function DestinationClock({ timezone }) {
+  const [time, setTime] = useState('')
+
+  useEffect(() => {
+    if (!timezone) return
+    function tick() {
+      setTime(new Date().toLocaleTimeString('en-AU', { timeZone: timezone, hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [timezone])
+
+  if (!timezone || !time) return null
+
+  const tzLabel = timezone.split('/').pop().replace(/_/g, ' ')
+  return (
+    <div className="card destination-clock">
+      <span className="label">Time in {tzLabel}</span>
+      <span className="clock-time">{time}</span>
+    </div>
+  )
+}
+
 export default function Dashboard({ trip }) {
   const [spent, setSpent] = useState(null)
   const [itineraryCount, setItineraryCount] = useState(null)
   const [wishlistCount, setWishlistCount] = useState(null)
+  const [staysCount, setStaysCount] = useState(null)
 
   useEffect(() => {
     if (!trip) return
@@ -13,11 +38,13 @@ export default function Dashboard({ trip }) {
       supabase.from('expenses').select('amount').eq('trip_id', trip.id),
       supabase.from('itinerary_items').select('id', { count: 'exact' }).eq('trip_id', trip.id),
       supabase.from('wishlist_items').select('id', { count: 'exact' }).eq('trip_id', trip.id),
-    ]).then(([expenses, itinerary, wishlist]) => {
+      supabase.from('accommodations').select('id', { count: 'exact' }).eq('trip_id', trip.id),
+    ]).then(([expenses, itinerary, wishlist, stays]) => {
       const total = (expenses.data || []).reduce((s, e) => s + parseFloat(e.amount), 0)
       setSpent(total)
       setItineraryCount(itinerary.count ?? 0)
       setWishlistCount(wishlist.count ?? 0)
+      setStaysCount(stays.count ?? 0)
     })
   }, [trip?.id])
 
@@ -56,6 +83,7 @@ export default function Dashboard({ trip }) {
           <span className="label">Days Remaining</span>
           <span>{daysRemaining}</span>
         </div>
+        <DestinationClock timezone={trip.timezone} />
         <div className="card">
           <span className="label">Itinerary events</span>
           <span>{itineraryCount ?? '…'}</span>
@@ -63,6 +91,10 @@ export default function Dashboard({ trip }) {
         <div className="card">
           <span className="label">Wishlist ideas</span>
           <span>{wishlistCount ?? '…'}</span>
+        </div>
+        <div className="card">
+          <span className="label">Stays</span>
+          <span>{staysCount ?? '…'}</span>
         </div>
       </div>
 
@@ -84,6 +116,7 @@ export default function Dashboard({ trip }) {
 
       <nav className="quick-links">
         <Link to="/itinerary" className="btn">Itinerary</Link>
+        <Link to="/accommodation" className="btn">Accommodation</Link>
         <Link to="/wishlist" className="btn">Wishlist</Link>
         <Link to="/budget" className="btn">Budget</Link>
         <Link to="/settings" className="btn">Settings</Link>

@@ -23,6 +23,7 @@ export default function Nav({ trips, activeTrip, setActiveTrip, signOut }) {
       <div className="nav-links">
         <NavLink to="/">Dashboard</NavLink>
         <NavLink to="/itinerary">Itinerary</NavLink>
+        <NavLink to="/accommodation">Stays</NavLink>
         <NavLink to="/wishlist">Wishlist</NavLink>
         <NavLink to="/budget">Budget</NavLink>
         <NavLink to="/settings">Settings</NavLink>

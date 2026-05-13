@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import WishlistModal from '../components/WishlistModal'
 import PromoteModal from '../components/PromoteModal'
+import PlacesDiscover from '../components/PlacesDiscover'
 
 const CATEGORIES = ['Activities', 'Restaurants', 'Sights', 'Shopping', 'Accommodation', 'Transport', 'Other']
 
@@ -9,8 +10,9 @@ export default function Wishlist({ trip, session }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('All')
-  const [modal, setModal] = useState(null) // { mode: 'add'|'edit', item? }
+  const [modal, setModal] = useState(null)
   const [promoteItem, setPromoteItem] = useState(null)
+  const [showDiscover, setShowDiscover] = useState(false)
 
   useEffect(() => {
     if (trip) fetchItems()
@@ -94,8 +96,27 @@ export default function Wishlist({ trip, session }) {
     <div className="page">
       <div className="page-header">
         <h2>Wishlist — {trip.name}</h2>
-        <button className="btn" onClick={() => setModal({ mode: 'add' })}>+ Add idea</button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-secondary" onClick={() => setShowDiscover((v) => !v)}>
+            {showDiscover ? 'Hide discover' : '🔍 Discover ideas'}
+          </button>
+          <button className="btn" onClick={() => setModal({ mode: 'add' })}>+ Add idea</button>
+        </div>
       </div>
+
+      {showDiscover && (
+        <PlacesDiscover
+          destination={trip.destination}
+          onAddToWishlist={async (payload) => {
+            const { data, error } = await supabase
+              .from('wishlist_items')
+              .insert({ ...payload, trip_id: trip.id, added_by: session?.user?.email })
+              .select()
+              .single()
+            if (!error) setItems((prev) => [data, ...prev])
+          }}
+        />
+      )}
 
       <div className="filter-bar">
         {categories.map((cat) => (

@@ -9,6 +9,7 @@ import Itinerary from './pages/Itinerary'
 import Wishlist from './pages/Wishlist'
 import Budget from './pages/Budget'
 import Settings from './pages/Settings'
+import Accommodation from './pages/Accommodation'
 import './styles/global.css'
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard trip={activeTrip} />} />
           <Route path="/itinerary" element={<Itinerary trip={activeTrip} calendarConnected={calendarConnected} pushEvent={pushEvent} deleteCalendarEvent={deleteCalendarEvent} />} />
+          <Route path="/accommodation" element={<Accommodation trip={activeTrip} />} />
           <Route path="/wishlist" element={<Wishlist trip={activeTrip} session={session} />} />
           <Route path="/budget" element={<Budget trip={activeTrip} session={session} />} />
           <Route path="/settings" element={<Settings trip={activeTrip} createTrip={createTrip} updateTrip={updateTrip} calendarConnected={calendarConnected} connectCalendar={connectCalendar} />} />

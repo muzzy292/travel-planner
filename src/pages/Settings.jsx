@@ -1,9 +1,22 @@
 import { useState } from 'react'
 
-const EMPTY_FORM = { name: '', destination: '', start_date: '', end_date: '', budget: '' }
+const TIMEZONES = [
+  'Australia/Sydney', 'Australia/Melbourne', 'Australia/Brisbane', 'Australia/Perth',
+  'Australia/Adelaide', 'Pacific/Auckland', 'Pacific/Fiji', 'Pacific/Honolulu',
+  'Asia/Tokyo', 'Asia/Seoul', 'Asia/Shanghai', 'Asia/Hong_Kong', 'Asia/Singapore',
+  'Asia/Bangkok', 'Asia/Bali', 'Asia/Jakarta', 'Asia/Manila', 'Asia/Kuala_Lumpur',
+  'Asia/Colombo', 'Asia/Kolkata', 'Asia/Dubai', 'Asia/Doha', 'Asia/Riyadh',
+  'Asia/Istanbul', 'Europe/Athens', 'Europe/Rome', 'Europe/Paris', 'Europe/Berlin',
+  'Europe/Madrid', 'Europe/Amsterdam', 'Europe/Zurich', 'Europe/London',
+  'Atlantic/Reykjavik', 'America/New_York', 'America/Chicago', 'America/Denver',
+  'America/Los_Angeles', 'America/Vancouver', 'America/Toronto', 'America/Cancun',
+  'America/Bogota', 'America/Lima', 'America/Sao_Paulo', 'America/Buenos_Aires',
+]
+
+const EMPTY_FORM = { name: '', destination: '', start_date: '', end_date: '', budget: '', timezone: 'Australia/Sydney' }
 
 export default function Settings({ trip, createTrip, updateTrip, calendarConnected, connectCalendar }) {
-  const [mode, setMode] = useState(null) // 'create' | 'edit'
+  const [mode, setMode] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -24,6 +37,7 @@ export default function Settings({ trip, createTrip, updateTrip, calendarConnect
       start_date: trip.start_date,
       end_date: trip.end_date,
       budget: trip.budget ?? '',
+      timezone: trip.timezone || 'Australia/Sydney',
     })
     setMode('edit')
     setError(null)
@@ -81,6 +95,7 @@ export default function Settings({ trip, createTrip, updateTrip, calendarConnect
             <div className="muted small">
               {trip.start_date} to {trip.end_date}
               {trip.budget ? ` · Budget $${Number(trip.budget).toLocaleString()}` : ''}
+              {trip.timezone ? ` · ${trip.timezone}` : ''}
             </div>
           </div>
         )}
@@ -116,6 +131,15 @@ export default function Settings({ trip, createTrip, updateTrip, calendarConnect
                 <input type="date" name="end_date" value={form.end_date} onChange={onChange} required />
               </label>
             </div>
+
+            <label>
+              Destination timezone
+              <select name="timezone" value={form.timezone} onChange={onChange}>
+                {TIMEZONES.map((tz) => (
+                  <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </label>
 
             <label>
               Total budget (AUD)

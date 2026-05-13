@@ -136,6 +136,29 @@ body {
 .btn-danger { background: var(--danger); color: #fff; border: none; padding: 0.5rem 1.25rem; border-radius: var(--radius); font-weight: 500; }
 .btn-danger:hover { background: #dc2626; }
 
+/* Wishlist */
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.filter-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 0.3rem 0.9rem; font-size: 0.85rem; cursor: pointer; }
+.filter-btn.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.wishlist-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.wishlist-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.wishlist-card.favourite { border-color: #fbbf24; background: #fffbeb; }
+.wishlist-card.promoted { opacity: 0.65; }
+.wishlist-card-header { display: flex; align-items: center; justify-content: space-between; }
+.wishlist-category { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; }
+.fav-btn { background: none; border: none; font-size: 1.1rem; color: var(--border); cursor: pointer; line-height: 1; }
+.fav-btn.active { color: #f59e0b; }
+.wishlist-title { font-weight: 600; cursor: pointer; }
+.wishlist-title:hover { color: var(--brand); }
+.wishlist-notes { font-size: 0.85rem; color: var(--muted); }
+.wishlist-url { font-size: 0.82rem; color: var(--brand); }
+.wishlist-footer { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+.wishlist-added-by { font-size: 0.78rem; color: var(--muted); }
+.btn-promote { background: none; border: none; color: var(--brand); font-size: 0.82rem; cursor: pointer; padding: 0; }
+.btn-promote:hover { text-decoration: underline; }
+.promoted-badge { font-size: 0.78rem; color: var(--success); font-weight: 500; }
+
 /* Mobile */
 @media (max-width: 640px) {
   .app-nav { flex-direction: column; height: auto; padding: 0.75rem 1rem; gap: 0.5rem; }

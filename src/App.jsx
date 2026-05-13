@@ -31,7 +31,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard trip={activeTrip} />} />
           <Route path="/itinerary" element={<Itinerary trip={activeTrip} />} />
-          <Route path="/wishlist" element={<Wishlist trip={activeTrip} />} />
+          <Route path="/wishlist" element={<Wishlist trip={activeTrip} session={session} />} />
           <Route path="/budget" element={<Budget trip={activeTrip} />} />
           <Route path="/settings" element={<Settings trip={activeTrip} createTrip={createTrip} updateTrip={updateTrip} calendarConnected={calendarConnected} connectCalendar={connectCalendar} />} />
           <Route path="*" element={<Navigate to="/" replace />} />

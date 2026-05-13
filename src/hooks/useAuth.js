@@ -12,20 +12,11 @@ export function useAuth() {
   const [denied, setDenied] = useState(false)
 
   useEffect(() => {
-    // Handle OAuth callback hash in URL
-    if (window.location.hash.includes('access_token')) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        handleSession(session)
-        // Clean up the hash from the URL
-        window.history.replaceState(null, '', window.location.pathname)
-      })
-    } else {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        handleSession(session)
-      })
-    }
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleSession(session)
+    })
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
       handleSession(session)
     })
 

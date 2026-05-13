@@ -99,6 +99,43 @@ body {
 .status-dot.connected { background: var(--success); }
 .status-dot.disconnected { background: var(--muted); }
 
+/* Itinerary */
+.itinerary-days { display: flex; flex-direction: column; gap: 1.25rem; }
+.day-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.day-header { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1rem; background: var(--bg); border-bottom: 1px solid var(--border); }
+.day-label { font-weight: 600; font-size: 0.9rem; }
+.btn-add { background: none; border: 1px solid var(--brand); color: var(--brand); padding: 0.2rem 0.7rem; border-radius: var(--radius); font-size: 0.85rem; }
+.btn-add:hover { background: var(--brand); color: #fff; }
+.day-events { padding: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; min-height: 40px; }
+.empty-day { color: var(--muted); font-size: 0.85rem; padding: 0.5rem; font-style: italic; }
+.event-item { display: flex; align-items: flex-start; gap: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem 0.75rem; }
+.event-item.confirmed { border-left: 3px solid var(--success); }
+.event-item.tentative { border-left: 3px solid var(--muted); }
+.drag-handle { color: var(--muted); cursor: grab; font-size: 1rem; padding-top: 2px; user-select: none; }
+.event-body { flex: 1; cursor: pointer; }
+.event-title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.event-time { font-size: 0.8rem; color: var(--muted); font-weight: 500; }
+.status-badge { font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 4px; }
+.status-badge.confirmed { background: #dcfce7; color: #166534; }
+.status-badge.tentative { background: #f1f5f9; color: var(--muted); }
+.event-location { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+.event-notes { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; white-space: pre-wrap; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 1rem; }
+.modal { background: var(--surface); border-radius: var(--radius); width: 100%; max-width: 480px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.modal-header { display: flex; align-items: baseline; gap: 0.75rem; padding: 1.25rem 1.25rem 0; }
+.modal-header h3 { font-size: 1rem; font-weight: 600; }
+.modal-date { color: var(--muted); font-size: 0.85rem; flex: 1; }
+.modal-close { background: none; border: none; color: var(--muted); font-size: 1rem; cursor: pointer; margin-left: auto; }
+.modal form { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.modal label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; font-weight: 500; }
+.modal input, .modal textarea, .modal select { padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.95rem; font-family: inherit; width: 100%; }
+.modal input:focus, .modal textarea:focus, .modal select:focus { outline: none; border-color: var(--brand); }
+.modal-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; padding-top: 0.25rem; }
+.btn-danger { background: var(--danger); color: #fff; border: none; padding: 0.5rem 1.25rem; border-radius: var(--radius); font-weight: 500; }
+.btn-danger:hover { background: #dc2626; }
+
 /* Mobile */
 @media (max-width: 640px) {
   .app-nav { flex-direction: column; height: auto; padding: 0.75rem 1rem; gap: 0.5rem; }

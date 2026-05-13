@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import AccommodationModal from '../components/AccommodationModal'
+import ParseConfirmationModal from '../components/ParseConfirmationModal'
 
 const TYPES = ['Hotel', 'Airbnb', 'Hostel', 'Resort', 'Apartment', 'Guesthouse', 'Other']
 
@@ -14,6 +15,7 @@ export default function Accommodation({ trip }) {
   const [stays, setStays] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
+  const [showParse, setShowParse] = useState(false)
 
   useEffect(() => {
     if (trip) fetchStays()
@@ -50,6 +52,66 @@ export default function Accommodation({ trip }) {
     setModal(null)
   }
 
+  async function handleImport(parsedItems) {
+    const stayItems = parsedItems.filter((i) => i.item_type === 'accommodation')
+    const otherItems = parsedItems.filter((i) => i.item_type !== 'accommodation')
+
+    // Insert stays
+    for (const item of stayItems) {
+      const { data } = await supabase
+        .from('accommodations')
+        .insert({
+          trip_id: trip.id,
+          name: item.title,
+          type: 'Hotel',
+          address: item.address || item.location || null,
+          check_in_date: item.day_date,
+          check_in_time: item.start_time || null,
+          check_out_date: item.check_out_date || null,
+          check_out_time: item.check_out_time || null,
+          confirmation_number: item.confirmation_number || null,
+          notes: item.notes || null,
+        })
+        .select()
+        .single()
+      if (data) setStays((prev) => [...prev, data].sort((a, b) => new Date(a.check_in_date) - new Date(b.check_in_date)))
+    }
+
+    // Push all items to itinerary
+    const itinInserts = parsedItems.map((item, idx) => ({
+      trip_id: trip.id,
+      day_date: item.day_date,
+      title: item.item_type === 'accommodation' ? `Check-in: ${item.title}` : item.title,
+      notes: item.notes || null,
+      location: item.address || item.location || null,
+      start_time: item.start_time || null,
+      item_type: item.item_type || 'other',
+      status: 'tentative',
+      order_index: idx,
+    }))
+    if (itinInserts.length > 0) {
+      await supabase.from('itinerary_items').insert(itinInserts)
+    }
+
+    // Also push check-out day to itinerary for accommodation
+    const checkoutInserts = stayItems
+      .filter((i) => i.check_out_date)
+      .map((item, idx) => ({
+        trip_id: trip.id,
+        day_date: item.check_out_date,
+        title: `Check-out: ${item.title}`,
+        notes: null,
+        location: item.address || item.location || null,
+        start_time: item.check_out_time || null,
+        item_type: 'accommodation',
+        status: 'tentative',
+        order_index: itinInserts.length + idx,
+      }))
+    if (checkoutInserts.length > 0) {
+      await supabase.from('itinerary_items').insert(checkoutInserts)
+    }
+  }
+
   async function deleteStay(id) {
     await supabase.from('accommodations').delete().eq('id', id)
     setStays((prev) => prev.filter((s) => s.id !== id))
@@ -66,7 +128,10 @@ export default function Accommodation({ trip }) {
     <div className="page">
       <div className="page-header">
         <h2>Accommodation — {trip.name}</h2>
-        <button className="btn" onClick={() => setModal({ mode: 'add' })}>+ Add stay</button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-secondary" onClick={() => setShowParse(true)}>📋 Import confirmation</button>
+          <button className="btn" onClick={() => setModal({ mode: 'add' })}>+ Add stay</button>
+        </div>
       </div>
 
       {stays.length > 0 && (
@@ -135,6 +200,13 @@ export default function Accommodation({ trip }) {
           onSave={saveStay}
           onDelete={deleteStay}
           onClose={() => setModal(null)}
+        />
+      )}
+      {showParse && (
+        <ParseConfirmationModal
+          trip={trip}
+          onImport={handleImport}
+          onClose={() => setShowParse(false)}
         />
       )}
     </div>

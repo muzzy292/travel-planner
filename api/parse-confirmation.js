@@ -1,20 +1,26 @@
 export const config = { runtime: 'edge' }
 
-const SYSTEM_PROMPT = `You are a travel confirmation parser. Extract itinerary items from travel confirmation emails or booking text.
+const SYSTEM_PROMPT = `You are a travel confirmation parser. Extract all events from travel confirmation emails or booking text.
 
 Return a JSON array of items. Each item must have:
-- title: string (concise event name, e.g. "Flight SQ211 Sydney → Singapore", "Check-in Sofitel Hanoi", "Hoi An day tour")
-- day_date: string (YYYY-MM-DD format — use the date of the event, not booking date)
-- start_time: string or null (HH:MM 24-hour format if a time is mentioned, else null)
+- title: string (concise name, e.g. "Flight SQ211 Sydney → Singapore", "Sofitel Hanoi", "Hoi An day tour")
+- day_date: string (YYYY-MM-DD — event date, not booking date)
+- start_time: string or null (HH:MM 24-hour)
 - item_type: one of "flight", "accommodation", "activity", "transport", "other"
-- notes: string or null (key details: flight number, confirmation code, address, duration, included meals, check-in/out times etc.)
-- location: string or null (airport, hotel name and city, or venue)
+- notes: string or null (key details: flight number, duration, included meals, etc.)
+- location: string or null (airport code + city, hotel name + city, or venue)
+
+For accommodation items, also include these extra fields:
+- check_out_date: string (YYYY-MM-DD check-out date)
+- check_out_time: string or null (HH:MM check-out time if mentioned)
+- confirmation_number: string or null (booking/confirmation reference)
+- address: string or null (full property address if mentioned)
 
 Rules:
-- Extract ALL distinct events from the text (e.g. outbound + return flights = 2 items, check-in + check-out = 1 accommodation item)
-- For accommodation, use check-in date as day_date
-- For flights, use departure date and time (local departure)
-- If a year is not mentioned and the dates seem future, use the current or next calendar year as appropriate
+- Extract ALL distinct events (outbound + return flights = 2 items; one accommodation item per property stay)
+- For accommodation: day_date = check-in date, start_time = check-in time
+- For flights: day_date = departure date, start_time = departure time (local)
+- If year is not mentioned, infer from trip date range
 - Return ONLY a valid JSON array, no markdown, no explanation`
 
 export default async function handler(req) {

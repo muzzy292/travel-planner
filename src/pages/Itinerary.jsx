@@ -4,7 +4,6 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { supabase } from '../lib/supabase'
 import SortableItem from '../components/SortableItem'
 import EventModal from '../components/EventModal'
-import ParseConfirmationModal from '../components/ParseConfirmationModal'
 import AccommodationModal from '../components/AccommodationModal'
 
 const STAY_TYPES = ['Hotel', 'Airbnb', 'Hostel', 'Resort', 'Apartment', 'Guesthouse', 'Other']
@@ -36,7 +35,6 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [stayModal, setStayModal] = useState(null)
-  const [showParse, setShowParse] = useState(false)
   const [syncError, setSyncError] = useState(null)
 
   const sensors = useSensors(useSensor(PointerSensor))
@@ -120,25 +118,6 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     )
   }
 
-  async function addParsedItems(parsedItems) {
-    const inserts = parsedItems.map((item, idx) => ({
-      trip_id: trip.id,
-      day_date: item.day_date,
-      title: item.title,
-      notes: item.notes || null,
-      location: item.location || null,
-      start_time: item.start_time || null,
-      item_type: item.item_type || 'other',
-      status: 'tentative',
-      order_index: idx,
-    }))
-    const { data, error } = await supabase
-      .from('itinerary_items')
-      .insert(inserts)
-      .select()
-    if (!error && data) setItems((prev) => [...prev, ...data])
-  }
-
   async function handleCalendarSync(item, day) {
     setSyncError(null)
     try {
@@ -216,7 +195,6 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     <div className="page">
       <div className="page-header">
         <h2>Itinerary — {trip.name}</h2>
-        <button className="btn btn-secondary" onClick={() => setShowParse(true)}>📋 Import confirmation</button>
       </div>
       {syncError && <p className="error" style={{ marginBottom: '1rem' }}>{syncError}</p>}
       <div className="itinerary-days">
@@ -281,13 +259,6 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
           prefill={stayModal}
           onSave={saveStayFromItinerary}
           onClose={() => setStayModal(null)}
-        />
-      )}
-      {showParse && (
-        <ParseConfirmationModal
-          trip={trip}
-          onAdd={addParsedItems}
-          onClose={() => setShowParse(false)}
         />
       )}
     </div>

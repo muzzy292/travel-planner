@@ -8,7 +8,7 @@ const TYPE_LABELS = {
   other: '📌 Other',
 }
 
-export default function ParseConfirmationModal({ trip, onAdd, onClose }) {
+export default function ParseConfirmationModal({ trip, onImport, onClose }) {
   const [text, setText] = useState('')
   const [parsing, setParsing] = useState(false)
   const [error, setError] = useState(null)
@@ -48,9 +48,9 @@ export default function ParseConfirmationModal({ trip, onAdd, onClose }) {
     )
   }
 
-  async function handleAdd() {
-    const toAdd = results.filter((_, i) => selected.includes(i))
-    await onAdd(toAdd)
+  async function handleImport() {
+    const toImport = results.filter((_, i) => selected.includes(i))
+    await onImport(toImport)
     onClose()
   }
 
@@ -65,7 +65,7 @@ export default function ParseConfirmationModal({ trip, onAdd, onClose }) {
         {!results ? (
           <>
             <p className="muted small" style={{ marginBottom: '0.75rem' }}>
-              Paste a booking confirmation email, PDF text, or any travel details. Claude will extract the events.
+              Paste a booking confirmation email or PDF text. Claude will extract stays and itinerary events.
             </p>
             <textarea
               className="parse-textarea"
@@ -89,7 +89,7 @@ export default function ParseConfirmationModal({ trip, onAdd, onClose }) {
             ) : (
               <>
                 <p className="muted small" style={{ marginBottom: '0.75rem' }}>
-                  {results.length} event{results.length !== 1 ? 's' : ''} found. Select which to add to your itinerary.
+                  {results.length} event{results.length !== 1 ? 's' : ''} found. Stays will be added to Stays + Itinerary. Other events go to Itinerary only.
                 </p>
                 <div className="parse-results">
                   {results.map((item, i) => (
@@ -104,11 +104,17 @@ export default function ParseConfirmationModal({ trip, onAdd, onClose }) {
                           <span className="parse-type-badge">{TYPE_LABELS[item.item_type] || item.item_type}</span>
                           <span className="parse-item-date">
                             {item.day_date}{item.start_time ? ` · ${item.start_time}` : ''}
+                            {item.item_type === 'accommodation' && item.check_out_date ? ` → ${item.check_out_date}` : ''}
                           </span>
                         </div>
                         <div className="parse-item-title">{item.title}</div>
+                        {item.confirmation_number && (
+                          <div className="parse-item-notes">Ref: {item.confirmation_number}</div>
+                        )}
                         {item.notes && <div className="parse-item-notes">{item.notes}</div>}
-                        {item.location && <div className="parse-item-location">📍 {item.location}</div>}
+                        {(item.address || item.location) && (
+                          <div className="parse-item-location">📍 {item.address || item.location}</div>
+                        )}
                       </div>
                     </label>
                   ))}
@@ -117,8 +123,8 @@ export default function ParseConfirmationModal({ trip, onAdd, onClose }) {
             )}
             <div className="btn-row" style={{ marginTop: '1rem' }}>
               {results.length > 0 && (
-                <button className="btn" onClick={handleAdd} disabled={selected.length === 0}>
-                  Add {selected.length} event{selected.length !== 1 ? 's' : ''} to itinerary
+                <button className="btn" onClick={handleImport} disabled={selected.length === 0}>
+                  Import {selected.length} event{selected.length !== 1 ? 's' : ''}
                 </button>
               )}
               <button className="btn btn-secondary" onClick={() => { setResults(null); setError(null) }}>

@@ -12,13 +12,12 @@ export function useAuth() {
   const [denied, setDenied] = useState(false)
 
   useEffect(() => {
-    // If there's a PKCE code in the URL, wait for onAuthStateChange to fire
-    // rather than calling getSession() which returns null before code exchange
     const hasCode = new URLSearchParams(window.location.search).has('code')
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Skip the initial null session while PKCE code exchange is in progress
+      if (hasCode && event === 'INITIAL_SESSION' && !session) return
       handleSession(session)
-      // Clean up code param from URL after session is established
       if (hasCode && session) {
         window.history.replaceState(null, '', window.location.pathname)
       }

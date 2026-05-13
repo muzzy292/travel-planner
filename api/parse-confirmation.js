@@ -70,7 +70,8 @@ ${text.slice(0, 8000)}`
 
     let items
     try {
-      items = JSON.parse(raw)
+      const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+      items = JSON.parse(cleaned)
     } catch {
       return new Response(JSON.stringify({ error: 'Could not parse Claude response', raw }), { status: 502 })
     }

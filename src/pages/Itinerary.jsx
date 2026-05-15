@@ -190,7 +190,9 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
       {syncError && <p className="error" style={{ marginBottom: '1rem' }}>{syncError}</p>}
       <div className="itinerary-days">
         {days.map((day, i) => {
-          const dayItems = items.filter((item) => item.day_date === day).sort((a, b) => a.order_index - b.order_index)
+          const allDayItems = items.filter((item) => item.day_date === day).sort((a, b) => a.order_index - b.order_index)
+          const flightItems = allDayItems.filter((item) => item.item_type === 'flight')
+          const regularItems = allDayItems.filter((item) => item.item_type !== 'flight')
           const label = new Date(day + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
           return (
             <div key={day} className="day-block">
@@ -198,6 +200,30 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
                 <span className="day-label">Day {i + 1} — {label}</span>
                 <button className="btn-add" onClick={() => setModal({ mode: 'add', day })}>+ Add</button>
               </div>
+
+              {/* Locked flight cards */}
+              {flightItems.map((flight) => {
+                const [from = '', to = ''] = (flight.location || '').split(' → ')
+                const arrLine = (flight.notes || '').split('\n').find(l => l.startsWith('Arrives:'))
+                return (
+                  <a key={flight.id} className={`itin-flight-card itin-flight-${flight.status}`} href="/accommodation" title="Manage in Stays">
+                    <div className="ifc-left">
+                      <span className="ifc-icon">✈️</span>
+                      <div className="ifc-body">
+                        <span className="ifc-title">{flight.title}</span>
+                        {flight.location && <span className="ifc-route">{from} → {to}</span>}
+                      </div>
+                    </div>
+                    <div className="ifc-right">
+                      {flight.start_time && <span className="ifc-time">{flight.start_time.slice(0, 5)}</span>}
+                      {arrLine && <span className="ifc-arr">{arrLine.replace('Arrives:', '→').trim()}</span>}
+                      <span className={`ifc-status ifc-status-${flight.status}`}>{flight.status}</span>
+                      <span className="ifc-lock">🔒</span>
+                    </div>
+                  </a>
+                )
+              })}
+
               {staysForDay(day).map((stay) => (
                 <a key={stay.id} className="stay-banner" href="/accommodation" title="View in Stays">
                   <span className="stay-banner-icon">🏨</span>
@@ -206,11 +232,14 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
                   {stay.address && <span className="stay-banner-address">📍 {stay.address}</span>}
                 </a>
               ))}
+
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, day)}>
-                <SortableContext items={dayItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <SortableContext items={regularItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                   <div className="day-events">
-                    {dayItems.length === 0 && <p className="empty-day">No events yet</p>}
-                    {dayItems.map((item) => {
+                    {regularItems.length === 0 && flightItems.length === 0 && staysForDay(day).length === 0 && (
+                      <p className="empty-day">No events yet</p>
+                    )}
+                    {regularItems.map((item) => {
                       const calEvent = calendarEvents.find((e) => e.item_id === item.id)
                       return (
                         <SortableItem

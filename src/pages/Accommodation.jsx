@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import AccommodationModal from '../components/AccommodationModal'
 import ParseConfirmationModal from '../components/ParseConfirmationModal'
+import FlightBookingModal from '../components/FlightBookingModal'
 
 const TYPES = ['Hotel', 'Airbnb', 'Hostel', 'Resort', 'Apartment', 'Guesthouse', 'Other']
 
@@ -26,12 +27,14 @@ function nightsBetween(checkIn, checkOut) {
 
 export default function Accommodation({ trip }) {
   const [stays, setStays] = useState([])
+  const [flights, setFlights] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
+  const [flightModal, setFlightModal] = useState(null)
   const [showParse, setShowParse] = useState(false)
 
   useEffect(() => {
-    if (trip) fetchStays()
+    if (trip) { fetchStays(); fetchFlights() }
   }, [trip?.id])
 
   async function fetchStays() {
@@ -43,6 +46,41 @@ export default function Accommodation({ trip }) {
       .order('check_in_date', { ascending: true })
     setStays(data || [])
     setLoading(false)
+  }
+
+  async function fetchFlights() {
+    const { data } = await supabase
+      .from('itinerary_items')
+      .select('*')
+      .eq('trip_id', trip.id)
+      .eq('item_type', 'flight')
+      .order('day_date')
+      .order('start_time')
+    setFlights(data || [])
+  }
+
+  async function saveFlight(payload) {
+    if (flightModal.mode === 'add') {
+      const { data, error } = await supabase
+        .from('itinerary_items')
+        .insert({ ...payload, trip_id: trip.id, order_index: 0 })
+        .select().single()
+      if (!error && data) setFlights((prev) => [...prev, data].sort((a, b) => a.day_date.localeCompare(b.day_date)))
+    } else {
+      const { data, error } = await supabase
+        .from('itinerary_items')
+        .update(payload)
+        .eq('id', flightModal.item.id)
+        .select().single()
+      if (!error && data) setFlights((prev) => prev.map((f) => f.id === flightModal.item.id ? data : f))
+    }
+    setFlightModal(null)
+  }
+
+  async function deleteFlight(id) {
+    await supabase.from('itinerary_items').delete().eq('id', id)
+    setFlights((prev) => prev.filter((f) => f.id !== id))
+    setFlightModal(null)
   }
 
   async function saveStay(payload) {
@@ -263,6 +301,45 @@ export default function Accommodation({ trip }) {
         })}
       </div>
 
+      {/* Flights section */}
+      <div className="flights-section">
+        <div className="flights-section-header">
+          <h3>✈️ Flights</h3>
+          <button className="btn" onClick={() => setFlightModal({ mode: 'add' })}>+ Add flight</button>
+        </div>
+        {flights.length === 0 && <p className="muted small">No flights added yet.</p>}
+        <div className="flight-cards">
+          {flights.map((flight) => {
+            const [from = '', to = ''] = (flight.location || '').split(' → ')
+            const confLine = (flight.notes || '').split('\n').find(l => l.startsWith('Conf:'))
+            const arrLine = (flight.notes || '').split('\n').find(l => l.startsWith('Arrives:'))
+            return (
+              <div key={flight.id} className={`flight-booking-card flight-booking-${flight.status}`} onClick={() => setFlightModal({ mode: 'edit', item: flight })}>
+                <div className="fbc-top">
+                  <div className="fbc-title">
+                    <span className="fbc-icon">✈️</span>
+                    <span className="fbc-name">{flight.title}</span>
+                  </div>
+                  <span className={`fbc-status fbc-status-${flight.status}`}>{flight.status}</span>
+                </div>
+                {flight.location && (
+                  <div className="fbc-route">{from} <span className="fbc-arrow">→</span> {to}</div>
+                )}
+                <div className="fbc-meta">
+                  <span>{new Date(flight.day_date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                  {flight.start_time && <span>Departs {flight.start_time.slice(0, 5)}</span>}
+                  {arrLine && <span>{arrLine.replace('Arrives:', 'Arrives').trim()}</span>}
+                </div>
+                <div className="fbc-bottom">
+                  {confLine && <span className="fbc-conf">{confLine.replace('Conf:', 'Conf:').trim()}</span>}
+                  {flight.cost && <span className="fbc-cost">${parseFloat(flight.cost).toLocaleString('en-AU', { minimumFractionDigits: 2 })}</span>}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       {modal && (
         <AccommodationModal
           mode={modal.mode}
@@ -279,6 +356,16 @@ export default function Accommodation({ trip }) {
           trip={trip}
           onImport={handleImport}
           onClose={() => setShowParse(false)}
+        />
+      )}
+      {flightModal && (
+        <FlightBookingModal
+          mode={flightModal.mode}
+          item={flightModal.item}
+          trip={trip}
+          onSave={saveFlight}
+          onDelete={deleteFlight}
+          onClose={() => setFlightModal(null)}
         />
       )}
     </div>

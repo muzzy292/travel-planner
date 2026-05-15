@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { supabase } from '../lib/supabase'
+import { loadMaps } from '../lib/maps'
 import SortableItem from '../components/SortableItem'
 import EventModal from '../components/EventModal'
 import AccommodationModal from '../components/AccommodationModal'
+import MapView from '../components/MapView'
 
 const STAY_TYPES = ['Hotel', 'Airbnb', 'Hostel', 'Resort', 'Apartment', 'Guesthouse', 'Other']
 
@@ -36,6 +38,8 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
   const [modal, setModal] = useState(null)
   const [stayModal, setStayModal] = useState(null)
   const [syncError, setSyncError] = useState(null)
+  const [mapDays, setMapDays] = useState(new Set())
+  const [travelTimes, setTravelTimes] = useState({})
 
   const sensors = useSensors(useSensor(PointerSensor))
 
@@ -62,10 +66,45 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
   async function fetchStays() {
     const { data } = await supabase
       .from('accommodations')
-      .select('id, name, type, check_in_date, check_out_date, check_in_time, check_out_time, address')
+      .select('id, name, type, check_in_date, check_out_date, check_in_time, check_out_time, address, lat, lng')
       .eq('trip_id', trip.id)
       .order('check_in_date')
     setStays(data || [])
+  }
+
+  async function fetchTravelTimes(day) {
+    const hotel = staysForDay(day).find(s => s.lat && s.lng)
+    if (!hotel) return
+    const dayItems = items.filter(i => i.day_date === day && i.item_type !== 'flight' && i.lat && i.lng)
+    if (!dayItems.length) return
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+    if (!apiKey) return
+    try {
+      await loadMaps(apiKey)
+      const service = new window.google.maps.DistanceMatrixService()
+      const result = await service.getDistanceMatrix({
+        origins: [{ lat: hotel.lat, lng: hotel.lng }],
+        destinations: dayItems.map(i => ({ lat: i.lat, lng: i.lng })),
+        travelMode: window.google.maps.TravelMode.WALKING,
+      })
+      const newTimes = {}
+      result.rows[0].elements.forEach((el, idx) => {
+        if (el.status === 'OK') newTimes[dayItems[idx].id] = el.duration.text
+      })
+      setTravelTimes(prev => ({ ...prev, ...newTimes }))
+    } catch (e) {
+      console.error('Distance Matrix:', e)
+    }
+  }
+
+  function toggleDayMap(day) {
+    setMapDays(prev => {
+      const next = new Set(prev)
+      if (next.has(day)) { next.delete(day) } else { next.add(day) }
+      return next
+    })
+    // Fetch travel times when map opens
+    if (!mapDays.has(day)) setTimeout(() => fetchTravelTimes(day), 500)
   }
 
   async function fetchCalendarEvents() {
@@ -194,12 +233,27 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
           const flightItems = allDayItems.filter((item) => item.item_type === 'flight')
           const regularItems = allDayItems.filter((item) => item.item_type !== 'flight')
           const label = new Date(day + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+          const mapOpen = mapDays.has(day)
+          const dayHotel = staysForDay(day).find(s => s.lat && s.lng)
+          const dayMapPins = [
+            ...(dayHotel ? [{ lat: dayHotel.lat, lng: dayHotel.lng, title: dayHotel.name, type: 'hotel' }] : []),
+            ...regularItems.filter(i => i.lat && i.lng).map(i => ({
+              lat: i.lat, lng: i.lng, title: i.title,
+              subtitle: i.start_time ? i.start_time.slice(0,5) : null,
+              type: i.item_type || 'other',
+              travelTime: travelTimes[i.id],
+            })),
+          ]
           return (
             <div key={day} className="day-block">
               <div className="day-header">
                 <span className="day-label">Day {i + 1} — {label}</span>
-                <button className="btn-add" onClick={() => setModal({ mode: 'add', day })}>+ Add</button>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button className={`btn-map-toggle ${mapOpen ? 'active' : ''}`} onClick={() => toggleDayMap(day)} title="Toggle map">🗺️</button>
+                  <button className="btn-add" onClick={() => setModal({ mode: 'add', day })}>+ Add</button>
+                </div>
               </div>
+              {mapOpen && <MapView pins={dayMapPins} height="260px" />}
 
               {/* Locked flight cards */}
               {flightItems.map((flight) => {
@@ -244,7 +298,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
                       return (
                         <SortableItem
                           key={item.id}
-                          item={{ ...item, calendar_event_id: calEvent?.id }}
+                          item={{ ...item, calendar_event_id: calEvent?.id, travelTime: travelTimes[item.id] }}
                           onEdit={() => setModal({ mode: 'edit', day, item })}
                           onCalendarSync={() => handleCalendarSync(item, day)}
                           onCalendarDelete={() => handleCalendarDelete(item)}

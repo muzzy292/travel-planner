@@ -1,25 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import { loadMaps } from '../lib/maps'
 
 const EMPTY = { name: '', type: 'Hotel', address: '', city: '', status: 'confirmed', check_in_date: '', check_in_time: '', check_out_date: '', check_out_time: '', confirmation_number: '', notes: '', url: '', price: '' }
-
-async function initMapsScript(apiKey) {
-  if (window.google?.maps?.importLibrary) return
-  return new Promise((resolve, reject) => {
-    if (document.getElementById('maps-script')) {
-      const check = setInterval(() => {
-        if (window.google?.maps?.importLibrary) { clearInterval(check); resolve() }
-      }, 50)
-      return
-    }
-    const script = document.createElement('script')
-    script.id = 'maps-script'
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`
-    script.async = true
-    script.onload = resolve
-    script.onerror = reject
-    document.body.appendChild(script)
-  })
-}
 
 export default function AccommodationModal({ mode, item, types, trip, prefill, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(mode === 'edit' ? {
@@ -52,7 +34,7 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
   useEffect(() => {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
     if (!apiKey) return
-    initMapsScript(apiKey).then(() => { mapsReadyRef.current = true }).catch(() => {})
+    loadMaps(apiKey).then(() => { mapsReadyRef.current = true }).catch(() => {})
   }, [])
 
   function onAddressChange(e) {
@@ -67,7 +49,7 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
     if (!apiKey) return
     try {
-      if (!mapsReadyRef.current) await initMapsScript(apiKey)
+      if (!mapsReadyRef.current) await loadMaps(apiKey)
       const { AutocompleteSuggestion, AutocompleteSessionToken } = await window.google.maps.importLibrary('places')
       if (!sessionTokenRef.current) sessionTokenRef.current = new AutocompleteSessionToken()
       const result = await AutocompleteSuggestion.fetchAutocompleteSuggestions({

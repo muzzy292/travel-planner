@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import AccommodationModal from '../components/AccommodationModal'
 import ParseConfirmationModal from '../components/ParseConfirmationModal'
 import FlightBookingModal from '../components/FlightBookingModal'
+import MapView from '../components/MapView'
 
 const TYPES = ['Hotel', 'Airbnb', 'Hostel', 'Resort', 'Apartment', 'Guesthouse', 'Other']
 
@@ -32,6 +33,7 @@ export default function Accommodation({ trip }) {
   const [modal, setModal] = useState(null)
   const [flightModal, setFlightModal] = useState(null)
   const [showParse, setShowParse] = useState(false)
+  const [showMap, setShowMap] = useState(false)
 
   useEffect(() => {
     if (trip) { fetchStays(); fetchFlights() }
@@ -223,8 +225,9 @@ export default function Accommodation({ trip }) {
     <div className="page">
       <div className="page-header">
         <h2>Bookings — {trip.name}</h2>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={() => setShowParse(true)}>📋 Import confirmation</button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button className={`btn btn-secondary${showMap ? ' btn-map-active' : ''}`} onClick={() => setShowMap(v => !v)}>🗺️ {showMap ? 'Hide map' : 'Map'}</button>
+          <button className="btn btn-secondary" onClick={() => setShowParse(true)}>📋 Import</button>
           <button className="btn" onClick={() => setModal({ mode: 'add' })}>+ Add stay</button>
         </div>
       </div>
@@ -257,6 +260,14 @@ export default function Accommodation({ trip }) {
       {stays.length === 0 && gaps.length === 0 && (
         <p className="muted">No accommodation added yet.</p>
       )}
+
+      {showMap && (() => {
+        const mapPins = [
+          ...stays.map((s) => ({ lat: s.lat, lng: s.lng, title: s.name, subtitle: `${s.check_in_date} → ${s.check_out_date}`, type: 'hotel' })),
+          ...flights.filter((f) => f.lat && f.lng).map((f) => ({ lat: f.lat, lng: f.lng, title: f.title, subtitle: f.day_date, type: 'flight' })),
+        ]
+        return <div style={{ marginBottom: '1.5rem' }}><MapView pins={mapPins} drawPath height="320px" /></div>
+      })()}
 
       <div className="stays-list">
         {/* Gap before first stay */}

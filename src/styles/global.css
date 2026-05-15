@@ -492,6 +492,23 @@ body {
 /* Bottom tab nav (mobile only) */
 .nav-bottom { display: none; }
 
+/* ── Map ─────────────────────────────────────── */
+.map-container { width: 100%; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+.map-no-coords { padding: 1rem; text-align: center; color: var(--muted); font-size: 0.9rem; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); }
+
+/* Map toggle button in day header and Bookings header */
+.btn-map-toggle { background: none; border: 1px solid var(--border); color: var(--muted); padding: 0.2rem 0.5rem; border-radius: var(--radius); font-size: 0.85rem; cursor: pointer; transition: all 0.15s; }
+.btn-map-toggle:hover { border-color: var(--brand); color: var(--brand); }
+.btn-map-toggle.active { background: #dbeafe; border-color: #2563eb; color: #1d4ed8; }
+.btn-map-active { background: #dbeafe !important; border-color: #2563eb !important; color: #1d4ed8 !important; }
+
+/* Travel time badge on itinerary items */
+.event-meta-row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 0.15rem; }
+.travel-time-badge { font-size: 0.75rem; color: #166534; background: #dcfce7; border-radius: 999px; padding: 0.1rem 0.5rem; }
+
+/* Geocoded pin indicator inside location field */
+.location-pin-indicator { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 0.85rem; pointer-events: none; }
+
 @media (max-width: 768px) {
   /* Bottom tab bar */
   .nav-bottom {

@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-const TYPE_ICONS = { flight: '✈', accommodation: '🏨', activity: '🎯', transport: '🚌' }
+const TYPE_ICONS = { flight: '✈', accommodation: '🏨', activity: '🎯', transport: '🚌', restaurant: '🍽️', other: '📌' }
 
 export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarDelete, onAddToStays, calendarConnected }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
@@ -28,9 +28,14 @@ export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarD
         </div>
         {item.location && <div className="event-location">📍 {item.location}</div>}
         {item.notes && <div className="event-notes">{item.notes}</div>}
-        {item.cost != null && (
-          <div className="event-cost">${parseFloat(item.cost).toLocaleString('en-AU', { minimumFractionDigits: 2 })}</div>
-        )}
+        <div className="event-meta-row">
+          {item.cost != null && (
+            <span className="event-cost">${parseFloat(item.cost).toLocaleString('en-AU', { minimumFractionDigits: 2 })}</span>
+          )}
+          {item.travelTime && (
+            <span className="travel-time-badge">🚶 {item.travelTime}</span>
+          )}
+        </div>
       </div>
       <div className="item-actions" onClick={(e) => e.stopPropagation()}>
         {canSync && (

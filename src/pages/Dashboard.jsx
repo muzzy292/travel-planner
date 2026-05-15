@@ -121,7 +121,7 @@ export default function Dashboard({ trip }) {
       // Accommodations for weather + city days widgets
       supabase
         .from('accommodations')
-        .select('id, name, address, check_in_date, check_out_date, price')
+        .select('id, name, address, city, check_in_date, check_out_date, price')
         .eq('trip_id', trip.id)
         .order('check_in_date'),
 

@@ -29,12 +29,12 @@ const WX_LABEL = (code) => {
 function extractCityQuery(stay) {
   // Explicit city field is most reliable for geocoding
   if (stay.city) return stay.city
-  // Fall back to address parsing (penultimate comma segment)
+  // Fall back to address parsing (penultimate comma segment, strip postal codes)
   if (stay.address) {
     const parts = stay.address.split(',').map(s => s.trim()).filter(Boolean)
-    if (parts.length >= 3) return parts[parts.length - 2]
-    if (parts.length >= 2) return parts[0]
-    return parts[0]
+    const raw = parts.length >= 3 ? parts[parts.length - 2] : parts[0]
+    // Strip trailing postal/zip codes (4–6 digits) e.g. "Hồ Chí Minh 70000"
+    return raw.replace(/\s+\d{4,6}\s*$/, '').trim()
   }
   return stay.name
 }

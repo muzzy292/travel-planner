@@ -2,18 +2,23 @@ import { useState, useEffect, useRef } from 'react'
 
 const EMPTY = { name: '', type: 'Hotel', address: '', city: '', check_in_date: '', check_in_time: '', check_out_date: '', check_out_time: '', confirmation_number: '', notes: '', url: '', price: '' }
 
-function loadMapsScript(apiKey) {
-  return new Promise((resolve) => {
-    if (window.google?.maps?.places) return resolve()
+async function initMapsScript(apiKey) {
+  // New async loading pattern required for Places API (new)
+  if (window.google?.maps?.importLibrary) return
+  return new Promise((resolve, reject) => {
     if (document.getElementById('maps-script')) {
-      document.getElementById('maps-script').addEventListener('load', resolve)
+      // Already loading — poll until ready
+      const check = setInterval(() => {
+        if (window.google?.maps?.importLibrary) { clearInterval(check); resolve() }
+      }, 50)
       return
     }
     const script = document.createElement('script')
     script.id = 'maps-script'
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&loading=async`
     script.async = true
     script.onload = resolve
+    script.onerror = reject
     document.body.appendChild(script)
   })
 }
@@ -35,46 +40,50 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
   } : { ...EMPTY, check_in_date: trip.start_date, check_out_date: trip.end_date, ...prefill })
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const addressRef = useRef(null)
-  const autocompleteRef = useRef(null)
+  const containerRef = useRef(null)
 
   useEffect(() => {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-    if (!apiKey || !addressRef.current) return
-    loadMapsScript(apiKey).then(() => {
-      if (!addressRef.current) return
-      autocompleteRef.current = new window.google.maps.places.Autocomplete(addressRef.current, {
-        fields: ['formatted_address', 'name', 'address_components', 'geometry'],
-        types: ['lodging', 'establishment'],
-      })
-      autocompleteRef.current.addListener('place_changed', () => {
-        const place = autocompleteRef.current.getPlace()
-        const address = place.formatted_address || ''
-        const name = place.name || ''
+    if (!apiKey || !containerRef.current) return
 
-        // Extract city from address_components: prefer locality, fall back to admin level 2 then 1
-        let city = ''
-        if (place.address_components?.length) {
-          const find = (type) =>
-            place.address_components.find((c) => c.types.includes(type))?.long_name || ''
-          city = find('locality') || find('administrative_area_level_2') || find('administrative_area_level_1')
-        }
+    let placeEl = null
 
-        // Store lat/lng for future map use
-        const lat = place.geometry?.location?.lat()
-        const lng = place.geometry?.location?.lng()
+    async function init() {
+      await initMapsScript(apiKey)
+      const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places')
+
+      placeEl = new PlaceAutocompleteElement({ types: ['establishment'] })
+      containerRef.current?.appendChild(placeEl)
+
+      placeEl.addEventListener('gmp-placeselect', async ({ place }) => {
+        await place.fetchFields({
+          fields: ['displayName', 'formattedAddress', 'addressComponents', 'location'],
+        })
+
+        const comps = place.addressComponents || []
+        const find = (type) => comps.find((c) => c.types.includes(type))?.longText || ''
+        const city =
+          find('locality') ||
+          find('administrative_area_level_2') ||
+          find('administrative_area_level_1')
 
         setForm((prev) => ({
           ...prev,
-          address,
+          address: place.formattedAddress || '',
           city: city || prev.city,
-          name: prev.name || name,
-          ...(lat && lng ? { lat, lng } : {}),
+          name: prev.name || place.displayName || '',
+          lat: place.location?.lat() ?? null,
+          lng: place.location?.lng() ?? null,
         }))
       })
-    })
+    }
+
+    init().catch(console.error)
+
     return () => {
-      if (autocompleteRef.current) window.google.maps.event.clearInstanceListeners(autocompleteRef.current)
+      if (placeEl && containerRef.current?.contains(placeEl)) {
+        containerRef.current.removeChild(placeEl)
+      }
     }
   }, [])
 
@@ -121,16 +130,20 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
               </select>
             </label>
           </div>
-          <div className="form-row">
-            <label style={{ flex: 2 }}>
-              Address
-              <input ref={addressRef} name="address" value={form.address} onChange={onChange} placeholder="Search for property…" autoComplete="off" />
-            </label>
-            <label>
-              City
-              <input name="city" value={form.city} onChange={onChange} placeholder="e.g. Ho Chi Minh City" />
-            </label>
-          </div>
+
+          <label>
+            Address search
+            <div ref={containerRef} className="places-autocomplete-wrap" />
+            {form.address && (
+              <div className="places-selected">{form.address}</div>
+            )}
+          </label>
+
+          <label>
+            City
+            <input name="city" value={form.city} onChange={onChange} placeholder="e.g. Ho Chi Minh City" />
+          </label>
+
           <div className="form-row">
             <label>
               Check-in date

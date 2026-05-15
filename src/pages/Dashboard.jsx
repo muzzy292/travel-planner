@@ -36,7 +36,6 @@ function TripStatus({ trip }) {
 
   if (today < start) {
     const daysTo = Math.round((start - today) / 86400000)
-    const pct = 0
     return (
       <div className="db-hero">
         <div className="db-hero-label">Countdown</div>
@@ -83,6 +82,56 @@ function TripStatus({ trip }) {
   )
 }
 
+function fmtMoney(n) {
+  if (n >= 10000) return `$${(n / 1000).toFixed(0)}k`
+  if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`
+  return `$${Math.round(n)}`
+}
+
+function cityFromStay(stay) {
+  if (stay.city) return stay.city
+  if (stay.address) {
+    const parts = stay.address.split(',').map(s => s.trim()).filter(Boolean)
+    const raw = parts.length >= 3 ? parts[parts.length - 2] : parts[0]
+    return raw.replace(/\s+\d{4,6}\s*$/, '').trim()
+  }
+  return null
+}
+
+function TripSummaryStrip({ trip, stays, flightCount, activityCount, budgetData }) {
+  const start = new Date(trip.start_date + 'T00:00:00')
+  const end = new Date(trip.end_date + 'T00:00:00')
+  const totalDays = Math.round((end - start) / 86400000) + 1
+
+  const cities = stays
+    ? [...new Set(stays.map(cityFromStay).filter(Boolean))]
+    : []
+
+  const budget = parseFloat(trip.budget || 0)
+  const spent = budgetData?.total ?? null
+
+  const stats = [
+    { icon: '📅', value: totalDays, label: totalDays === 1 ? 'Day' : 'Days' },
+    { icon: '📍', value: cities.length, label: cities.length === 1 ? 'City' : 'Cities' },
+    { icon: '✈️', value: flightCount ?? '—', label: flightCount === 1 ? 'Flight' : 'Flights' },
+    { icon: '🏨', value: stays?.length ?? '—', label: stays?.length === 1 ? 'Hotel' : 'Hotels' },
+    { icon: '🎯', value: activityCount ?? '—', label: activityCount === 1 ? 'Activity' : 'Activities' },
+    ...(budget > 0 ? [{ icon: '💰', value: fmtMoney(budget), label: 'Budget' }] : []),
+    ...(spent !== null && spent > 0 ? [{ icon: '💸', value: fmtMoney(spent), label: 'Spent' }] : []),
+  ]
+
+  return (
+    <div className="db-summary-strip">
+      {stats.map((s, i) => (
+        <div key={i} className="db-summary-stat">
+          <span className="db-summary-value">{s.value}</span>
+          <span className="db-summary-label">{s.icon} {s.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 const TYPE_ICONS = { flight: '✈', accommodation: '🏨', activity: '🎯', transport: '🚌' }
 
 export default function Dashboard({ trip }) {
@@ -90,6 +139,8 @@ export default function Dashboard({ trip }) {
   const [stays, setStays] = useState(null)
   const [flights, setFlights] = useState(null)
   const [budgetData, setBudgetData] = useState(null)
+  const [flightCount, setFlightCount] = useState(null)
+  const [activityCount, setActivityCount] = useState(null)
 
   useEffect(() => {
     if (!trip) return
@@ -109,7 +160,7 @@ export default function Dashboard({ trip }) {
         .order('day_date').order('order_index')
         .limit(6),
 
-      // All future flights
+      // Upcoming flights (for widget)
       supabase
         .from('itinerary_items')
         .select('id, title, day_date, start_time, item_type, status, location, notes')
@@ -118,7 +169,7 @@ export default function Dashboard({ trip }) {
         .gte('day_date', fromDate)
         .order('day_date').order('start_time'),
 
-      // Accommodations for weather + city days widgets
+      // Accommodations for widgets
       supabase
         .from('accommodations')
         .select('id, name, address, city, check_in_date, check_out_date, price')
@@ -129,10 +180,16 @@ export default function Dashboard({ trip }) {
       supabase.from('expenses').select('amount').eq('trip_id', trip.id),
       supabase.from('accommodations').select('price').eq('trip_id', trip.id).not('price', 'is', null),
       supabase.from('itinerary_items').select('cost').eq('trip_id', trip.id).not('cost', 'is', null),
-    ]).then(([itin, flightsRes, staysRes, expenses, stayPrices, itinCosts]) => {
+
+      // Counts for summary strip
+      supabase.from('itinerary_items').select('*', { count: 'exact', head: true }).eq('trip_id', trip.id).eq('item_type', 'flight'),
+      supabase.from('itinerary_items').select('*', { count: 'exact', head: true }).eq('trip_id', trip.id).eq('item_type', 'activity'),
+    ]).then(([itin, flightsRes, staysRes, expenses, stayPrices, itinCosts, flightCountRes, activityCountRes]) => {
       setUpcomingItems(itin.data || [])
       setFlights(flightsRes.data || [])
       setStays(staysRes.data || [])
+      setFlightCount(flightCountRes.count ?? 0)
+      setActivityCount(activityCountRes.count ?? 0)
 
       const expTotal = (expenses.data || []).reduce((s, e) => s + parseFloat(e.amount), 0)
       const stayTotal = (stayPrices.data || []).reduce((s, e) => s + parseFloat(e.price), 0)
@@ -193,6 +250,14 @@ export default function Dashboard({ trip }) {
       </div>
 
       <TripStatus trip={trip} />
+
+      <TripSummaryStrip
+        trip={trip}
+        stays={stays}
+        flightCount={flightCount}
+        activityCount={activityCount}
+        budgetData={budgetData}
+      />
 
       {/* Upcoming itinerary */}
       <div className="db-section">

@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 const TABS = [
   { to: '/', label: 'Home', icon: '⊞' },
   { to: '/itinerary', label: 'Plan', icon: '📅' },
-  { to: '/accommodation', label: 'Stays', icon: '🏨' },
+  { to: '/accommodation', label: 'Bookings', icon: '🏨' },
   { to: '/wishlist', label: 'Wishlist', icon: '✨' },
   { to: '/budget', label: 'Budget', icon: '💰' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
@@ -35,7 +35,7 @@ export default function Nav({ trips, activeTrip, setActiveTrip, signOut }) {
         <div className="nav-links nav-desktop">
           <NavLink to="/">Dashboard</NavLink>
           <NavLink to="/itinerary">Itinerary</NavLink>
-          <NavLink to="/accommodation">Stays</NavLink>
+          <NavLink to="/accommodation">Bookings</NavLink>
           <NavLink to="/wishlist">Wishlist</NavLink>
           <NavLink to="/budget">Budget</NavLink>
           <NavLink to="/settings">Settings</NavLink>

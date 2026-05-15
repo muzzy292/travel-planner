@@ -46,7 +46,7 @@ export default function CityDaysWidget({ stays }) {
     <div className="db-section">
       <div className="db-section-header">
         <h3>📍 Days per city</h3>
-        <a href="/accommodation" className="db-section-link">Edit stays →</a>
+        <a href="/accommodation" className="db-section-link">Bookings →</a>
       </div>
       <div className="db-cities">
         {cities.map(([city, info]) => (

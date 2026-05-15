@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-const EMPTY = { name: '', type: 'Hotel', address: '', city: '', check_in_date: '', check_in_time: '', check_out_date: '', check_out_time: '', confirmation_number: '', notes: '', url: '', price: '' }
+const EMPTY = { name: '', type: 'Hotel', address: '', city: '', status: 'confirmed', check_in_date: '', check_in_time: '', check_out_date: '', check_out_time: '', confirmation_number: '', notes: '', url: '', price: '' }
 
 async function initMapsScript(apiKey) {
   if (window.google?.maps?.importLibrary) return
@@ -27,6 +27,7 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
     type: item.type || 'Hotel',
     address: item.address || '',
     city: item.city || '',
+    status: item.status || 'confirmed',
     check_in_date: item.check_in_date || '',
     check_in_time: item.check_in_time || '',
     check_out_date: item.check_out_date || '',
@@ -126,6 +127,7 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
       notes: form.notes || null,
       url: form.url || null,
       city: form.city || null,
+      status: form.status || 'confirmed',
       lat: form.lat || null,
       lng: form.lng || null,
     })
@@ -149,6 +151,14 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
               Type
               <select name="type" value={form.type} onChange={onChange}>
                 {types.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </label>
+            <label>
+              Status
+              <select name="status" value={form.status} onChange={onChange}>
+                <option value="confirmed">Confirmed</option>
+                <option value="tentative">Tentative</option>
+                <option value="cancelled">Cancelled</option>
               </select>
             </label>
           </div>

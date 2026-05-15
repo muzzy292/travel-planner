@@ -222,7 +222,7 @@ export default function Accommodation({ trip }) {
   return (
     <div className="page">
       <div className="page-header">
-        <h2>Accommodation — {trip.name}</h2>
+        <h2>Bookings — {trip.name}</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-secondary" onClick={() => setShowParse(true)}>📋 Import confirmation</button>
           <button className="btn" onClick={() => setModal({ mode: 'add' })}>+ Add stay</button>
@@ -271,9 +271,10 @@ export default function Accommodation({ trip }) {
             <div key={stay.id}>
             <div className="stay-card" onClick={() => setModal({ mode: 'edit', item: stay })}>
               <div className="stay-header">
-                <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <span className="stay-type-badge">{stay.type}</span>
                   <span className="stay-name">{stay.name}</span>
+                  <span className={`stay-status-badge stay-status-${stay.status || 'confirmed'}`}>{stay.status || 'confirmed'}</span>
                 </div>
                 {stay.price && <span className="stay-price">${parseFloat(stay.price).toLocaleString('en-AU', { minimumFractionDigits: 2 })}</span>}
               </div>

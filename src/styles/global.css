@@ -326,6 +326,57 @@ body {
 .parse-item-notes { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.15rem; }
 .parse-item-location { font-size: 0.78rem; color: var(--muted); }
 
+/* Widget row — side by side on desktop */
+.db-widgets-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 0; }
+.db-widgets-row .db-section { margin-bottom: 0; }
+.btn-plain { background: none; border: none; cursor: pointer; color: var(--brand); font-size: 0.82rem; padding: 0; }
+
+/* Weather widget */
+.db-weather-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+.db-weather-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); }
+.db-weather-icon { font-size: 1.5rem; flex-shrink: 0; }
+.db-weather-body { display: flex; flex-direction: column; gap: 0.05rem; }
+.db-weather-city { font-weight: 600; font-size: 0.9rem; }
+.db-weather-temp { font-size: 1.1rem; font-weight: 700; color: var(--brand); }
+.db-weather-label { font-size: 0.75rem; color: var(--muted); }
+
+/* Currency widget */
+.db-currency { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; background: var(--bg); border-radius: var(--radius); border: 1px solid var(--border); }
+.db-currency-flag { font-size: 2rem; flex-shrink: 0; }
+.db-currency-rates { display: flex; flex-direction: column; gap: 0.25rem; }
+.db-currency-main-rate { font-size: 0.95rem; }
+.db-currency-main-rate strong { color: var(--brand); }
+.db-currency-refs { display: flex; gap: 1rem; font-size: 0.78rem; color: var(--muted); flex-wrap: wrap; }
+
+/* City days widget */
+.db-cities { display: flex; flex-direction: column; gap: 0.4rem; }
+.db-city-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.75rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg); }
+.db-city-row.db-city-current { border-color: var(--brand); background: #eff6ff; }
+.db-city-left { display: flex; flex-direction: column; gap: 0.15rem; }
+.db-here-badge { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--brand); background: #dbeafe; border-radius: 3px; padding: 0.1rem 0.35rem; width: fit-content; }
+.db-city-name { font-weight: 600; font-size: 0.9rem; }
+.db-city-dates { font-size: 0.75rem; color: var(--muted); }
+.db-city-nights { font-size: 0.9rem; font-weight: 700; color: var(--text); flex-shrink: 0; }
+
+/* Flight widget */
+.db-flights { display: flex; flex-direction: column; gap: 0.75rem; }
+.db-flight { padding: 0.75rem; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg); display: flex; flex-direction: column; gap: 0.3rem; }
+.db-flight-confirmed { border-left: 3px solid var(--success); }
+.db-flight-tentative { border-left: 3px solid var(--muted); }
+.db-flight-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.db-flight-name { font-weight: 600; font-size: 0.92rem; flex: 1; }
+.db-flight-badge { font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 4px; flex-shrink: 0; }
+.db-flight-badge.confirmed { background: #dcfce7; color: #166534; }
+.db-flight-badge.tentative { background: #f1f5f9; color: var(--muted); }
+.db-flight-row { display: flex; align-items: center; justify-content: space-between; }
+.db-flight-date { font-size: 0.83rem; color: var(--muted); }
+.db-flight-until { font-size: 0.83rem; font-weight: 600; color: var(--brand); }
+.db-flight-location { font-size: 0.78rem; color: var(--muted); }
+.db-flight-notes { font-size: 0.78rem; color: var(--muted); white-space: pre-wrap; }
+.db-flight-checkin { font-size: 0.78rem; margin-top: 0.1rem; padding: 0.25rem 0.5rem; border-radius: 4px; background: #f1f5f9; color: var(--muted); }
+.db-checkin-open { background: #dcfce7; color: #166534; font-weight: 600; }
+.db-checkin-soon { background: #fef3c7; color: #92400e; }
+
 /* Bottom tab nav (mobile only) */
 .nav-bottom { display: none; }
 

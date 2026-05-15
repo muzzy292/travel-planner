@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import WeatherWidget from '../components/WeatherWidget'
+import CurrencyWidget from '../components/CurrencyWidget'
+import CityDaysWidget from '../components/CityDaysWidget'
+import FlightWidget from '../components/FlightWidget'
 
 function DestinationClock({ timezone }) {
   const [time, setTime] = useState('')
@@ -83,6 +87,8 @@ const TYPE_ICONS = { flight: '✈', accommodation: '🏨', activity: '🎯', tra
 
 export default function Dashboard({ trip }) {
   const [upcomingItems, setUpcomingItems] = useState(null)
+  const [stays, setStays] = useState(null)
+  const [flights, setFlights] = useState(null)
   const [budgetData, setBudgetData] = useState(null)
 
   useEffect(() => {
@@ -93,25 +99,43 @@ export default function Dashboard({ trip }) {
     const fromDate = today < new Date(trip.start_date + 'T00:00:00') ? trip.start_date : today.toISOString().slice(0, 10)
 
     Promise.all([
-      // Next 6 itinerary items from today (or trip start)
+      // Next 6 non-flight itinerary items from today/trip start
       supabase
         .from('itinerary_items')
         .select('id, title, day_date, start_time, item_type, status')
         .eq('trip_id', trip.id)
+        .neq('item_type', 'flight')
         .gte('day_date', fromDate)
-        .order('day_date')
-        .order('order_index')
+        .order('day_date').order('order_index')
         .limit(6),
 
-      // Budget: expenses + stay prices + itinerary costs
+      // All future flights
+      supabase
+        .from('itinerary_items')
+        .select('id, title, day_date, start_time, item_type, status, location, notes')
+        .eq('trip_id', trip.id)
+        .eq('item_type', 'flight')
+        .gte('day_date', fromDate)
+        .order('day_date').order('start_time'),
+
+      // Accommodations for weather + city days widgets
+      supabase
+        .from('accommodations')
+        .select('id, name, address, check_in_date, check_out_date, price')
+        .eq('trip_id', trip.id)
+        .order('check_in_date'),
+
+      // Budget totals
       supabase.from('expenses').select('amount').eq('trip_id', trip.id),
       supabase.from('accommodations').select('price').eq('trip_id', trip.id).not('price', 'is', null),
       supabase.from('itinerary_items').select('cost').eq('trip_id', trip.id).not('cost', 'is', null),
-    ]).then(([itin, expenses, stays, itinCosts]) => {
+    ]).then(([itin, flightsRes, staysRes, expenses, stayPrices, itinCosts]) => {
       setUpcomingItems(itin.data || [])
+      setFlights(flightsRes.data || [])
+      setStays(staysRes.data || [])
 
       const expTotal = (expenses.data || []).reduce((s, e) => s + parseFloat(e.amount), 0)
-      const stayTotal = (stays.data || []).reduce((s, e) => s + parseFloat(e.price), 0)
+      const stayTotal = (stayPrices.data || []).reduce((s, e) => s + parseFloat(e.price), 0)
       const itinTotal = (itinCosts.data || []).reduce((s, e) => s + parseFloat(e.cost), 0)
       setBudgetData({ total: expTotal + stayTotal + itinTotal })
     })
@@ -194,6 +218,9 @@ export default function Dashboard({ trip }) {
         ))}
       </div>
 
+      <FlightWidget flights={flights} />
+      <CityDaysWidget stays={stays} />
+
       {/* Budget snapshot */}
       {budget > 0 && spent !== null && (
         <div className="db-section">
@@ -228,6 +255,11 @@ export default function Dashboard({ trip }) {
           </div>
         </div>
       )}
+
+      <div className="db-widgets-row">
+        <WeatherWidget stays={stays} destination={trip.destination} />
+        <CurrencyWidget destination={trip.destination} />
+      </div>
     </div>
   )
 }

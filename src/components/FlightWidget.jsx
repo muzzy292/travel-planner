@@ -3,8 +3,14 @@ import { Link } from 'react-router-dom'
 // Most airlines open check-in 48h before international flights
 const CHECKIN_HOURS_BEFORE = 48
 
+function toDate(dateStr, timeStr, fallback = '12:00') {
+  // start_time from Supabase is HH:MM:SS — slice to HH:MM to avoid double-seconds
+  const t = (timeStr || fallback).slice(0, 5)
+  return new Date(`${dateStr}T${t}:00`)
+}
+
 function checkinStatus(dateStr, timeStr) {
-  const dep = new Date(`${dateStr}T${timeStr || '12:00'}:00`)
+  const dep = toDate(dateStr, timeStr)
   const opensAt = new Date(dep.getTime() - CHECKIN_HOURS_BEFORE * 3600000)
   const now = new Date()
   const msUntilDep = dep - now
@@ -25,7 +31,7 @@ function checkinStatus(dateStr, timeStr) {
 }
 
 function timeUntil(dateStr, timeStr) {
-  const dep = new Date(`${dateStr}T${timeStr || '00:00'}:00`)
+  const dep = toDate(dateStr, timeStr, '00:00')
   const now = new Date()
   const ms = dep - now
   if (ms <= 0) return null

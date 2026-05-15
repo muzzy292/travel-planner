@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-const EMPTY = { name: '', type: 'Hotel', address: '', check_in_date: '', check_in_time: '', check_out_date: '', check_out_time: '', confirmation_number: '', notes: '', url: '', price: '' }
+const EMPTY = { name: '', type: 'Hotel', address: '', city: '', check_in_date: '', check_in_time: '', check_out_date: '', check_out_time: '', confirmation_number: '', notes: '', url: '', price: '' }
 
 function loadMapsScript(apiKey) {
   return new Promise((resolve) => {
@@ -23,6 +23,7 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
     name: item.name,
     type: item.type || 'Hotel',
     address: item.address || '',
+    city: item.city || '',
     check_in_date: item.check_in_date || '',
     check_in_time: item.check_in_time || '',
     check_out_date: item.check_out_date || '',
@@ -43,16 +44,26 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
     loadMapsScript(apiKey).then(() => {
       if (!addressRef.current) return
       autocompleteRef.current = new window.google.maps.places.Autocomplete(addressRef.current, {
-        fields: ['formatted_address', 'name'],
+        fields: ['formatted_address', 'name', 'address_components'],
         types: ['lodging', 'establishment'],
       })
       autocompleteRef.current.addListener('place_changed', () => {
         const place = autocompleteRef.current.getPlace()
         const address = place.formatted_address || ''
         const name = place.name || ''
+
+        // Extract city from address_components: prefer locality, fall back to admin level 2 then 1
+        let city = ''
+        if (place.address_components?.length) {
+          const find = (type) =>
+            place.address_components.find((c) => c.types.includes(type))?.long_name || ''
+          city = find('locality') || find('administrative_area_level_2') || find('administrative_area_level_1')
+        }
+
         setForm((prev) => ({
           ...prev,
           address,
+          city: city || prev.city,
           name: prev.name || name,
         }))
       })
@@ -78,6 +89,7 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
       notes: form.notes || null,
       url: form.url || null,
       address: form.address || null,
+      city: form.city || null,
     })
     setSaving(false)
   }
@@ -105,6 +117,10 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
           <label>
             Address (search)
             <input ref={addressRef} name="address" value={form.address} onChange={onChange} placeholder="Search for property…" autoComplete="off" />
+          </label>
+          <label>
+            City
+            <input name="city" value={form.city} onChange={onChange} placeholder="e.g. Ho Chi Minh City" />
           </label>
           <div className="form-row">
             <label>

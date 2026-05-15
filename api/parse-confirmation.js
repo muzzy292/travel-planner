@@ -15,6 +15,7 @@ For accommodation items, also include these extra fields:
 - check_out_time: string or null (HH:MM check-out time if mentioned)
 - confirmation_number: string or null (booking/confirmation reference)
 - address: string or null (full property address if mentioned)
+- city: string or null (city name only, e.g. "Ho Chi Minh City", "Hanoi", "Tokyo")
 
 Rules:
 - Extract ALL distinct events (outbound + return flights = 2 items; one accommodation item per property stay)

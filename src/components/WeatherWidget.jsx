@@ -27,6 +27,9 @@ const WX_LABEL = (code) => {
 }
 
 function extractCityQuery(stay) {
+  // Explicit city field is most reliable for geocoding
+  if (stay.city) return stay.city
+  // Fall back to address parsing (penultimate comma segment)
   if (stay.address) {
     const parts = stay.address.split(',').map(s => s.trim()).filter(Boolean)
     if (parts.length >= 3) return parts[parts.length - 2]

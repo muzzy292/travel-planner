@@ -4,14 +4,15 @@ function nightsBetween(a, b) {
 }
 
 function extractCity(stay) {
+  // Explicit city field is most reliable
+  if (stay.city) return stay.city
+  // Fall back to address parsing (penultimate comma segment)
   if (stay.address) {
     const parts = stay.address.split(',').map(s => s.trim()).filter(Boolean)
-    // Skip last (country) and take city — typically 2nd from end
     if (parts.length >= 3) return parts[parts.length - 2]
     if (parts.length >= 2) return parts[0]
     return parts[0]
   }
-  // Fall back to stay name, strip common prefixes
   return stay.name
 }
 

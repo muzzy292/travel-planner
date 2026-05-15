@@ -78,6 +78,7 @@ export default function Accommodation({ trip }) {
           name: item.title,
           type: 'Hotel',
           address: item.address || item.location || null,
+          city: item.city || null,
           check_in_date: item.day_date,
           check_in_time: item.start_time || null,
           check_out_date: item.check_out_date || null,

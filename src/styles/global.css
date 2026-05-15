@@ -132,23 +132,31 @@ body {
 .modal label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; font-weight: 500; }
 .modal input, .modal textarea, .modal select { padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.95rem; font-family: inherit; width: 100%; }
 .modal input:focus, .modal textarea:focus, .modal select:focus { outline: none; border-color: var(--brand); }
-/* Google PlaceAutocompleteElement — style to match our inputs */
-.places-autocomplete-wrap { display: block; width: 100%; }
-.places-autocomplete-wrap gmp-place-autocomplete { display: block; width: 100%; }
-gmp-place-autocomplete::part(input) {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
+/* Places autocomplete dropdown */
+.places-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0; right: 0;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 0.95rem;
-  font-family: inherit;
-  background: var(--surface);
-  color: var(--text);
-  outline: none;
-  box-sizing: border-box;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  z-index: 200;
+  overflow: hidden;
+  margin-top: 2px;
 }
-gmp-place-autocomplete::part(input):focus { border-color: var(--brand); }
-.places-selected { font-size: 0.8rem; color: var(--muted); margin-top: 0.3rem; padding: 0 0.1rem; }
+.places-suggestion {
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  border-bottom: 1px solid var(--border);
+}
+.places-suggestion:last-child { border-bottom: none; }
+.places-suggestion:hover { background: var(--bg); }
+.places-suggestion-main { font-size: 0.9rem; color: var(--text); font-weight: 500; }
+.places-suggestion-secondary { font-size: 0.8rem; color: var(--muted); }
 
 .modal-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; padding-top: 0.25rem; }
 .btn-danger { background: var(--danger); color: #fff; border: none; padding: 0.5rem 1.25rem; border-radius: var(--radius); font-weight: 500; }

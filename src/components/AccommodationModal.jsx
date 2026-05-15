@@ -3,11 +3,9 @@ import { useState, useEffect, useRef } from 'react'
 const EMPTY = { name: '', type: 'Hotel', address: '', city: '', check_in_date: '', check_in_time: '', check_out_date: '', check_out_time: '', confirmation_number: '', notes: '', url: '', price: '' }
 
 async function initMapsScript(apiKey) {
-  // New async loading pattern required for Places API (new)
   if (window.google?.maps?.importLibrary) return
   return new Promise((resolve, reject) => {
     if (document.getElementById('maps-script')) {
-      // Already loading — poll until ready
       const check = setInterval(() => {
         if (window.google?.maps?.importLibrary) { clearInterval(check); resolve() }
       }, 50)
@@ -38,54 +36,78 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
     url: item.url || '',
     price: item.price || '',
   } : { ...EMPTY, check_in_date: trip.start_date, check_out_date: trip.end_date, ...prefill })
+
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const containerRef = useRef(null)
+
+  // Address autocomplete state
+  const [addressInput, setAddressInput] = useState(mode === 'edit' ? (item.address || '') : (prefill?.address || ''))
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const sessionTokenRef = useRef(null)
+  const debounceRef = useRef(null)
+  const mapsReadyRef = useRef(false)
 
   useEffect(() => {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
-    if (!apiKey || !containerRef.current) return
-
-    let placeEl = null
-
-    async function init() {
-      await initMapsScript(apiKey)
-      const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places')
-
-      placeEl = new PlaceAutocompleteElement({ types: ['establishment'] })
-      containerRef.current?.appendChild(placeEl)
-
-      placeEl.addEventListener('gmp-placeselect', async ({ place }) => {
-        await place.fetchFields({
-          fields: ['displayName', 'formattedAddress', 'addressComponents', 'location'],
-        })
-
-        const comps = place.addressComponents || []
-        const find = (type) => comps.find((c) => c.types.includes(type))?.longText || ''
-        const city =
-          find('locality') ||
-          find('administrative_area_level_2') ||
-          find('administrative_area_level_1')
-
-        setForm((prev) => ({
-          ...prev,
-          address: place.formattedAddress || '',
-          city: city || prev.city,
-          name: prev.name || place.displayName || '',
-          lat: place.location?.lat() ?? null,
-          lng: place.location?.lng() ?? null,
-        }))
-      })
-    }
-
-    init().catch(console.error)
-
-    return () => {
-      if (placeEl && containerRef.current?.contains(placeEl)) {
-        containerRef.current.removeChild(placeEl)
-      }
-    }
+    if (!apiKey) return
+    initMapsScript(apiKey).then(() => { mapsReadyRef.current = true }).catch(() => {})
   }, [])
+
+  function onAddressChange(e) {
+    const val = e.target.value
+    setAddressInput(val)
+    clearTimeout(debounceRef.current)
+    if (val.length < 2) { setSuggestions([]); return }
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 300)
+  }
+
+  async function fetchSuggestions(input) {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+    if (!apiKey) return
+    try {
+      if (!mapsReadyRef.current) await initMapsScript(apiKey)
+      const { AutocompleteSuggestion, AutocompleteSessionToken } = await window.google.maps.importLibrary('places')
+      if (!sessionTokenRef.current) sessionTokenRef.current = new AutocompleteSessionToken()
+      const result = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
+        input,
+        sessionToken: sessionTokenRef.current,
+        includedPrimaryTypes: ['lodging'],
+      })
+      setSuggestions((result.suggestions || []).slice(0, 5))
+      setShowSuggestions(true)
+    } catch (err) {
+      console.error('Places error:', err)
+    }
+  }
+
+  async function selectSuggestion(suggestion) {
+    try {
+      const place = suggestion.placePrediction.toPlace()
+      await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'addressComponents', 'location'] })
+
+      const comps = place.addressComponents || []
+      const find = (type) => comps.find((c) => c.types.includes(type))?.longText || ''
+      const city = find('locality') || find('administrative_area_level_2') || find('administrative_area_level_1')
+      const address = place.formattedAddress || ''
+
+      setAddressInput(address)
+      setSuggestions([])
+      setShowSuggestions(false)
+      sessionTokenRef.current = null
+
+      setForm((prev) => ({
+        ...prev,
+        address,
+        city: city || prev.city,
+        name: prev.name || place.displayName || '',
+        lat: place.location?.lat() ?? null,
+        lng: place.location?.lng() ?? null,
+      }))
+    } catch (err) {
+      console.error('Place fetch error:', err)
+    }
+  }
 
   function onChange(e) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
@@ -96,13 +118,13 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
     setSaving(true)
     await onSave({
       ...form,
+      address: addressInput || null,
       price: form.price ? parseFloat(form.price) : null,
       check_in_time: form.check_in_time || null,
       check_out_time: form.check_out_time || null,
       confirmation_number: form.confirmation_number || null,
       notes: form.notes || null,
       url: form.url || null,
-      address: form.address || null,
       city: form.city || null,
       lat: form.lat || null,
       lng: form.lng || null,
@@ -131,18 +153,39 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
             </label>
           </div>
 
-          <label>
-            Address search
-            <div ref={containerRef} className="places-autocomplete-wrap" />
-            {form.address && (
-              <div className="places-selected">{form.address}</div>
-            )}
-          </label>
-
-          <label>
-            City
-            <input name="city" value={form.city} onChange={onChange} placeholder="e.g. Ho Chi Minh City" />
-          </label>
+          <div className="form-row">
+            <label style={{ flex: 2 }}>
+              Address
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={addressInput}
+                  onChange={onAddressChange}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                  placeholder="Search for property address…"
+                  autoComplete="off"
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="places-dropdown">
+                    {suggestions.map((s, i) => (
+                      <div
+                        key={i}
+                        className="places-suggestion"
+                        onMouseDown={() => selectSuggestion(s)}
+                      >
+                        <span className="places-suggestion-main">{s.placePrediction.mainText?.text}</span>
+                        <span className="places-suggestion-secondary">{s.placePrediction.secondaryText?.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </label>
+            <label>
+              City
+              <input name="city" value={form.city} onChange={onChange} placeholder="e.g. Ho Chi Minh City" />
+            </label>
+          </div>
 
           <div className="form-row">
             <label>

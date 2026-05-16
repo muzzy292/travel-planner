@@ -120,7 +120,7 @@ export default function Budget({ trip, session }) {
 
   const SOURCE_BADGE = {
     stay: { label: 'Stay', bg: '#fef3c7', color: '#92400e' },
-    itinerary: { label: 'Itinerary', bg: '#eff6ff', color: '#1d4ed8' },
+    itinerary: { label: 'Itinerary', bg: '#eef4f0', color: '#185c40' },
     expense: { label: 'Expense', bg: '#f0fdf4', color: '#166534' },
   }
 

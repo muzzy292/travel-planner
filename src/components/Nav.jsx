@@ -15,7 +15,9 @@ export default function Nav({ trips, activeTrip, setActiveTrip, signOut }) {
       {/* Top bar */}
       <nav className="app-nav">
         <div className="nav-left">
-          <span className="nav-brand">Travel Planner</span>
+          <span className="nav-brand">
+            travel<span>planner</span>
+          </span>
           {trips.length > 1 && (
             <select
               value={activeTrip?.id || ''}
@@ -33,7 +35,7 @@ export default function Nav({ trips, activeTrip, setActiveTrip, signOut }) {
         </div>
         {/* Desktop links */}
         <div className="nav-links nav-desktop">
-          <NavLink to="/">Dashboard</NavLink>
+          <NavLink to="/">Home</NavLink>
           <NavLink to="/itinerary">Itinerary</NavLink>
           <NavLink to="/accommodation">Bookings</NavLink>
           <NavLink to="/wishlist">Wishlist</NavLink>

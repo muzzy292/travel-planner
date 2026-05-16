@@ -97,14 +97,46 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     }
   }
 
+  async function geocodeMissingItems(day) {
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+    if (!apiKey) return
+    const missing = items.filter(
+      i => i.day_date === day && i.item_type !== 'flight' && i.location && !i.lat && !i.lng
+    )
+    if (!missing.length) return
+    try {
+      await loadMaps(apiKey)
+      const geocoder = new window.google.maps.Geocoder()
+      await Promise.all(missing.map(async (item) => {
+        try {
+          const result = await geocoder.geocode({ address: item.location })
+          if (result.results?.[0]) {
+            const loc = result.results[0].geometry.location
+            const lat = loc.lat()
+            const lng = loc.lng()
+            setItems(prev => prev.map(i => i.id === item.id ? { ...i, lat, lng } : i))
+            await supabase.from('itinerary_items').update({ lat, lng }).eq('id', item.id)
+          }
+        } catch (e) {
+          console.error('Geocode failed for', item.title, e)
+        }
+      }))
+    } catch (e) {
+      console.error('Geocoder init error:', e)
+    }
+  }
+
   function toggleDayMap(day) {
     setMapDays(prev => {
       const next = new Set(prev)
       if (next.has(day)) { next.delete(day) } else { next.add(day) }
       return next
     })
-    // Fetch travel times when map opens
-    if (!mapDays.has(day)) setTimeout(() => fetchTravelTimes(day), 500)
+    // When opening: geocode any items with text locations but no coords, then fetch travel times
+    if (!mapDays.has(day)) {
+      geocodeMissingItems(day)
+      setTimeout(() => fetchTravelTimes(day), 600)
+    }
   }
 
   async function fetchCalendarEvents() {

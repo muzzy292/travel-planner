@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { loadMaps } from '../lib/maps'
 
-const EMPTY = { title: '', start_time: '', location: '', notes: '', status: 'tentative', item_type: 'activity', cost: '', lat: null, lng: null }
+const EMPTY = { title: '', start_time: '', location: '', notes: '', status: 'tentative', item_type: 'activity', cost: '', lat: null, lng: null, google_rating: null, google_rating_count: null }
 
 const ITEM_TYPES = [
   { value: 'activity',     label: '🎯 Activity' },
@@ -23,6 +23,8 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
     cost: item.cost != null ? String(item.cost) : '',
     lat: item.lat || null,
     lng: item.lng || null,
+    google_rating: item.google_rating || null,
+    google_rating_count: item.google_rating_count || null,
   } : EMPTY)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
@@ -70,13 +72,15 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
   async function selectSuggestion(suggestion) {
     try {
       const place = suggestion.placePrediction.toPlace()
-      await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'addressComponents', 'location'] })
+      await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'addressComponents', 'location', 'rating', 'userRatingCount'] })
       const address = place.formattedAddress || ''
       setForm(prev => ({
         ...prev,
         location: place.displayName ? `${place.displayName}, ${address}` : address,
         lat: place.location?.lat() ?? null,
         lng: place.location?.lng() ?? null,
+        google_rating: place.rating ?? null,
+        google_rating_count: place.userRatingCount ?? null,
       }))
       setSuggestions([])
       setShowSuggestions(false)
@@ -104,6 +108,8 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
       cost: form.cost !== '' ? parseFloat(form.cost) : null,
       lat: form.lat || null,
       lng: form.lng || null,
+      google_rating: form.google_rating || null,
+      google_rating_count: form.google_rating_count || null,
     })
     if (error) setSaveError(error)
     setSaving(false)

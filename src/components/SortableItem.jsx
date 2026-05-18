@@ -3,6 +3,12 @@ import { CSS } from '@dnd-kit/utilities'
 
 const TYPE_ICONS = { flight: '✈', accommodation: '🏨', activity: '🎯', transport: '🚌', restaurant: '🍽️', other: '📌' }
 
+function Stars({ rating }) {
+  return Array.from({ length: 5 }, (_, i) => (
+    <span key={i} style={{ color: i + 1 <= Math.round(rating) ? '#c4541f' : '#d8d0bd', fontSize: '0.8rem' }}>★</span>
+  ))
+}
+
 export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarDelete, onAddToStays, calendarConnected }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
 
@@ -27,6 +33,15 @@ export default function SortableItem({ item, onEdit, onCalendarSync, onCalendarD
           <span className={`status-badge ${item.status}`}>{item.status}</span>
         </div>
         {item.location && <div className="event-location">📍 {item.location}</div>}
+        {item.google_rating && (
+          <div className="wishlist-rating" style={{ marginTop: '0.15rem' }}>
+            <Stars rating={item.google_rating} />
+            <span className="wishlist-rating-score">{item.google_rating.toFixed(1)}</span>
+            {item.google_rating_count && (
+              <span className="wishlist-rating-count">({item.google_rating_count.toLocaleString()})</span>
+            )}
+          </div>
+        )}
         {item.notes && <div className="event-notes">{item.notes}</div>}
         <div className="event-meta-row">
           {item.cost != null && (

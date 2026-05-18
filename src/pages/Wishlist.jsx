@@ -75,7 +75,7 @@ export default function Wishlist({ trip, session }) {
   async function promoteToItinerary(itemId, day) {
     const { data: itinItem } = await supabase
       .from('itinerary_items')
-      .insert({ trip_id: trip.id, day_date: day, title: promoteItem.title, notes: promoteItem.notes, location: promoteItem.address || null, lat: promoteItem.lat || null, lng: promoteItem.lng || null, status: 'tentative', order_index: 0 })
+      .insert({ trip_id: trip.id, day_date: day, title: promoteItem.title, notes: promoteItem.notes, location: promoteItem.address || null, lat: promoteItem.lat || null, lng: promoteItem.lng || null, google_rating: promoteItem.google_rating || null, google_rating_count: promoteItem.google_rating_count || null, status: 'tentative', order_index: 0 })
       .select()
       .single()
     if (itinItem) {

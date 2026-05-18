@@ -81,11 +81,12 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     if (!apiKey) return
     try {
       await loadMaps(apiKey)
-      const service = new window.google.maps.DistanceMatrixService()
+      const { DistanceMatrixService, TravelMode } = await window.google.maps.importLibrary('routes')
+      const service = new DistanceMatrixService()
       const result = await service.getDistanceMatrix({
         origins: [{ lat: hotel.lat, lng: hotel.lng }],
         destinations: dayItems.map(i => ({ lat: i.lat, lng: i.lng })),
-        travelMode: window.google.maps.TravelMode.WALKING,
+        travelMode: TravelMode.WALKING,
       })
       const newTimes = {}
       result.rows[0].elements.forEach((el, idx) => {
@@ -106,7 +107,8 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     if (!missing.length) return
     try {
       await loadMaps(apiKey)
-      const geocoder = new window.google.maps.Geocoder()
+      const { Geocoder } = await window.google.maps.importLibrary('geocoding')
+      const geocoder = new Geocoder()
       await Promise.all(missing.map(async (item) => {
         try {
           const result = await geocoder.geocode({ address: item.location })

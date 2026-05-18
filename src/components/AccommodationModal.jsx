@@ -67,7 +67,7 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
   async function selectSuggestion(suggestion) {
     try {
       const place = suggestion.placePrediction.toPlace()
-      await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'addressComponents', 'location'] })
+      await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'addressComponents', 'location', 'rating', 'userRatingCount'] })
 
       const comps = place.addressComponents || []
       const find = (type) => comps.find((c) => c.types.includes(type))?.longText || ''
@@ -86,6 +86,8 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
         name: prev.name || place.displayName || '',
         lat: place.location?.lat() ?? null,
         lng: place.location?.lng() ?? null,
+        google_rating: place.rating ?? null,
+        google_rating_count: place.userRatingCount ?? null,
       }))
     } catch (err) {
       console.error('Place fetch error:', err)
@@ -112,6 +114,8 @@ export default function AccommodationModal({ mode, item, types, trip, prefill, o
       status: form.status || 'confirmed',
       lat: form.lat || null,
       lng: form.lng || null,
+      google_rating: form.google_rating || null,
+      google_rating_count: form.google_rating_count || null,
     })
     setSaving(false)
   }

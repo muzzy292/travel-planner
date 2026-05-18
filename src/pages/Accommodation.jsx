@@ -7,6 +7,12 @@ import MapView from '../components/MapView'
 
 const TYPES = ['Hotel', 'Airbnb', 'Hostel', 'Resort', 'Apartment', 'Guesthouse', 'Other']
 
+function renderStars(rating) {
+  return Array.from({ length: 5 }, (_, i) => (
+    <span key={i} style={{ color: i + 1 <= Math.round(rating) ? '#c4541f' : '#d8d0bd' }}>★</span>
+  ))
+}
+
 function GapBanner({ gap, onAdd }) {
   return (
     <div className="accommodation-gap">
@@ -289,6 +295,15 @@ export default function Accommodation({ trip }) {
                 </div>
                 {stay.price && <span className="stay-price">${parseFloat(stay.price).toLocaleString('en-AU', { minimumFractionDigits: 2 })}</span>}
               </div>
+              {stay.google_rating && (
+                <div className="wishlist-rating" style={{ marginBottom: '0.25rem' }}>
+                  <span className="wishlist-stars">{renderStars(stay.google_rating)}</span>
+                  <span className="wishlist-rating-score">{stay.google_rating.toFixed(1)}</span>
+                  {stay.google_rating_count && (
+                    <span className="wishlist-rating-count">({stay.google_rating_count.toLocaleString()})</span>
+                  )}
+                </div>
+              )}
               {stay.address && <div className="stay-address">📍 {stay.address}</div>}
               <div className="stay-dates">
                 <div className="stay-date-block">

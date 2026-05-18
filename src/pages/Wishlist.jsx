@@ -68,7 +68,7 @@ export default function Wishlist({ trip, session }) {
   async function promoteToItinerary(itemId, day) {
     const { data: itinItem } = await supabase
       .from('itinerary_items')
-      .insert({ trip_id: trip.id, day_date: day, title: promoteItem.title, notes: promoteItem.notes, status: 'tentative', order_index: 0 })
+      .insert({ trip_id: trip.id, day_date: day, title: promoteItem.title, notes: promoteItem.notes, location: promoteItem.address || null, lat: promoteItem.lat || null, lng: promoteItem.lng || null, status: 'tentative', order_index: 0 })
       .select()
       .single()
     if (itinItem) {
@@ -146,6 +146,7 @@ export default function Wishlist({ trip, session }) {
               >★</button>
             </div>
             <div className="wishlist-title" onClick={() => setModal({ mode: 'edit', item })}>{item.title}</div>
+            {item.address && <div className="wishlist-address">📍 {item.address}</div>}
             {item.notes && <div className="wishlist-notes">{item.notes}</div>}
             {item.url && <a className="wishlist-url" href={item.url} target="_blank" rel="noreferrer">View link</a>}
             <div className="wishlist-footer">

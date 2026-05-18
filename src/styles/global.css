@@ -372,6 +372,7 @@ body {
 .fav-btn.active { color: #c4541f; }
 .wishlist-title { font-weight: 600; cursor: pointer; letter-spacing: -0.01em; }
 .wishlist-title:hover { color: var(--brand); }
+.wishlist-address { font-size: 0.8rem; color: var(--muted); }
 .wishlist-notes { font-size: 0.85rem; color: var(--muted); }
 .wishlist-url { font-size: 0.82rem; color: var(--brand); }
 .wishlist-footer {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { loadMaps } from '../lib/maps'
 
-const EMPTY = { title: '', category: 'Activities', notes: '', url: '', address: '', lat: null, lng: null }
+const EMPTY = { title: '', category: 'Activities', notes: '', url: '', address: '', lat: null, lng: null, google_rating: null, google_rating_count: null }
 
 export default function WishlistModal({ mode, item, categories, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(mode === 'edit' ? {
@@ -12,6 +12,8 @@ export default function WishlistModal({ mode, item, categories, onSave, onDelete
     address: item.address || '',
     lat: item.lat || null,
     lng: item.lng || null,
+    google_rating: item.google_rating || null,
+    google_rating_count: item.google_rating_count || null,
   } : EMPTY)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -60,13 +62,15 @@ export default function WishlistModal({ mode, item, categories, onSave, onDelete
   async function selectSuggestion(suggestion) {
     try {
       const place = suggestion.placePrediction.toPlace()
-      await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location'] })
+      await place.fetchFields({ fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount'] })
       const address = place.formattedAddress || ''
       setForm(prev => ({
         ...prev,
         address: place.displayName ? `${place.displayName}, ${address}` : address,
         lat: place.location?.lat() ?? null,
         lng: place.location?.lng() ?? null,
+        google_rating: place.rating ?? null,
+        google_rating_count: place.userRatingCount ?? null,
       }))
       setSuggestions([])
       setShowSuggestions(false)
@@ -87,6 +91,8 @@ export default function WishlistModal({ mode, item, categories, onSave, onDelete
       address: form.address || null,
       lat: form.lat || null,
       lng: form.lng || null,
+      google_rating: form.google_rating || null,
+      google_rating_count: form.google_rating_count || null,
     })
     setSaving(false)
   }

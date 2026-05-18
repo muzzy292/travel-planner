@@ -6,6 +6,13 @@ import PlacesDiscover from '../components/PlacesDiscover'
 
 const CATEGORIES = ['Activities', 'Restaurants', 'Sights', 'Shopping', 'Accommodation', 'Transport', 'Other']
 
+function renderStars(rating) {
+  return Array.from({ length: 5 }, (_, i) => {
+    const filled = i + 1 <= Math.round(rating)
+    return <span key={i} style={{ color: filled ? '#c4541f' : '#d8d0bd' }}>★</span>
+  })
+}
+
 export default function Wishlist({ trip, session }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
@@ -146,6 +153,15 @@ export default function Wishlist({ trip, session }) {
               >★</button>
             </div>
             <div className="wishlist-title" onClick={() => setModal({ mode: 'edit', item })}>{item.title}</div>
+            {item.google_rating && (
+              <div className="wishlist-rating">
+                <span className="wishlist-stars">{renderStars(item.google_rating)}</span>
+                <span className="wishlist-rating-score">{item.google_rating.toFixed(1)}</span>
+                {item.google_rating_count && (
+                  <span className="wishlist-rating-count">({item.google_rating_count.toLocaleString()})</span>
+                )}
+              </div>
+            )}
             {item.address && <div className="wishlist-address">📍 {item.address}</div>}
             {item.notes && <div className="wishlist-notes">{item.notes}</div>}
             {item.url && <a className="wishlist-url" href={item.url} target="_blank" rel="noreferrer">View link</a>}

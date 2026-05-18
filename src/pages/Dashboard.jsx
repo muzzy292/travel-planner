@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { fetchForecast, geocodeCity } from '../lib/weather'
 import '../styles/briefing.css'
 
 // ── Pure helpers ─────────────────────────────────────────────
@@ -180,7 +181,7 @@ function buildHeroStats(phaseKey, trip, stays, flights, budgetData, flightCount,
   return []
 }
 
-function buildTickers(phaseKey, trip, stays, flights, budgetData, flightCount) {
+function buildTickers(phaseKey, trip, stays, flights, budgetData, flightCount, forecast) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const daysToGo  = getDaysToGo(trip)
   const totalDays = getTotalDays(trip)
@@ -234,8 +235,16 @@ function buildTickers(phaseKey, trip, stays, flights, budgetData, flightCount) {
       trend: d === 0 ? 'up' : 'flat',
       note: nextFlight.title.slice(0, 22),
     })
+  } else if (forecast?.[0]) {
+    const w = forecast[0]
+    tickers.push({
+      id: 'weather', label: 'Weather today',
+      value: `${w.hi}°`, delta: w.emoji,
+      trend: 'flat',
+      note: `${w.lo}° low · ${w.p}% rain`,
+    })
   } else {
-    tickers.push({ id: 'weather', label: 'Weather', value: '—', delta: 'connect API', trend: 'flat', note: 'Open-Meteo' })
+    tickers.push({ id: 'weather', label: 'Weather', value: '—', delta: 'loading…', trend: 'flat', note: 'Open-Meteo' })
   }
 
   return tickers
@@ -311,17 +320,6 @@ const PHASE_ACTIONS = {
     { kind: 'ghost',   label: 'Budget overview',     icon: '💰' },
   ],
 }
-
-// Mock 7-day forecast (would come from Open-Meteo)
-const MOCK_FORECAST = [
-  { d: 'Mon', hi: 30, lo: 22, p: 40, emoji: '⛅' },
-  { d: 'Tue', hi: 32, lo: 23, p: 60, emoji: '🌦️' },
-  { d: 'Wed', hi: 28, lo: 21, p: 70, emoji: '⛈️' },
-  { d: 'Thu', hi: 31, lo: 22, p: 30, emoji: '☀️' },
-  { d: 'Fri', hi: 33, lo: 24, p: 20, emoji: '☀️' },
-  { d: 'Sat', hi: 31, lo: 23, p: 45, emoji: '⛅' },
-  { d: 'Sun', hi: 29, lo: 22, p: 55, emoji: '🌦️' },
-]
 
 // ── Sub-components ───────────────────────────────────────────
 
@@ -588,7 +586,7 @@ function ForecastStrip({ days }) {
   )
 }
 
-function DetailRow({ flights, trip }) {
+function DetailRow({ flights, trip, forecast, forecastCity }) {
   const today    = new Date(); today.setHours(0, 0, 0, 0)
   const todayStr = today.toISOString().slice(0, 10)
   const upcoming = (flights || []).filter(f => f.day_date >= todayStr)
@@ -637,13 +635,21 @@ function DetailRow({ flights, trip }) {
       <section className="bf-card">
         <CardHeader
           title="14-day weather"
-          right={<span className="bf-badge sky" style={{ fontSize: 10 }}>connect Open-Meteo</span>}
+          right={forecast
+            ? <span className="bf-badge confirmed" style={{ fontSize: 10 }}>● live</span>
+            : <span className="bf-badge sky" style={{ fontSize: 10 }}>loading…</span>
+          }
         />
-        <ForecastStrip days={MOCK_FORECAST} />
-        <div className="bf-forecast-notes">
-          <span className="bf-tiny bf-muted">Forecast · {trip.destination || trip.name}</span>
-          <span className="bf-tiny bf-muted">Mock data — connect Open-Meteo API</span>
-        </div>
+        {forecast
+          ? <>
+              <ForecastStrip days={forecast.slice(0, 7)} />
+              <div className="bf-forecast-notes">
+                <span className="bf-tiny bf-muted">Forecast · {forecastCity || trip.destination || trip.name}</span>
+                <span className="bf-tiny bf-muted">Open-Meteo · 14-day</span>
+              </div>
+            </>
+          : <p className="bf-muted-sm" style={{ padding: '0.5rem 0' }}>Fetching weather…</p>
+        }
       </section>
     </div>
   )
@@ -713,6 +719,8 @@ export default function Dashboard({ trip }) {
   const [flightCount,    setFlightCount]    = useState(null)
   const [activityCount,  setActivityCount]  = useState(null)
   const [phaseOverride,  setPhaseOverride]  = useState(null)
+  const [forecast,       setForecast]       = useState(null)
+  const [forecastCity,   setForecastCity]   = useState(null)
 
   useEffect(() => {
     if (!trip) return
@@ -743,7 +751,41 @@ export default function Dashboard({ trip }) {
     })
   }, [trip?.id])
 
-  useEffect(() => { setPhaseOverride(null) }, [trip?.id])
+  useEffect(() => { setPhaseOverride(null); setForecast(null); setForecastCity(null) }, [trip?.id])
+
+  // Fetch weather once stays are loaded (so we can use the stay's coordinates)
+  useEffect(() => {
+    if (!trip || stays === null) return
+    async function loadWeather() {
+      try {
+        const today = new Date(); today.setHours(0, 0, 0, 0)
+        const todayStr = today.toISOString().slice(0, 10)
+        let coords = null, cityLabel = null
+
+        // Prefer coordinates from the current or first upcoming stay
+        const currentStay = stays.find(s => s.check_in_date <= todayStr && s.check_out_date >= todayStr)
+        const targetStay  = currentStay || stays[0]
+        if (targetStay?.lat && targetStay?.lng) {
+          coords    = { lat: targetStay.lat, lng: targetStay.lng }
+          cityLabel = targetStay.city || targetStay.name
+        }
+
+        // Fallback: geocode the trip destination via Open-Meteo
+        if (!coords && trip.destination) {
+          const geo = await geocodeCity(trip.destination)
+          if (geo) { coords = geo; cityLabel = geo.name }
+        }
+
+        if (!coords) return
+        const days = await fetchForecast(coords.lat, coords.lng)
+        setForecast(days)
+        setForecastCity(cityLabel)
+      } catch (e) {
+        console.error('Weather fetch failed:', e)
+      }
+    }
+    loadWeather()
+  }, [trip?.id, stays])
 
   if (!trip) {
     return (
@@ -759,7 +801,7 @@ export default function Dashboard({ trip }) {
   const phaseKey  = phaseOverride || computePhase(trip)
   const narrative = buildNarrative(phaseKey, trip, stays, flights, budgetData, flightCount)
   const heroStats = buildHeroStats(phaseKey, trip, stays, flights, budgetData, flightCount, activityCount)
-  const tickers   = buildTickers(phaseKey, trip, stays, flights, budgetData, flightCount)
+  const tickers   = buildTickers(phaseKey, trip, stays, flights, budgetData, flightCount, forecast)
   const watching  = buildWatching(stays, flights)
   const actions   = buildActionList(upcomingItems)
 
@@ -802,7 +844,7 @@ export default function Dashboard({ trip }) {
           <IntelCard    items={INTEL_ITEMS} />
         </div>
 
-        <DetailRow flights={flights || []} trip={trip} />
+        <DetailRow flights={flights || []} trip={trip} forecast={forecast} forecastCity={forecastCity} />
 
         <BudgetRow trip={trip} budgetData={budgetData} stays={stays || []} />
 

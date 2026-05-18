@@ -319,6 +319,14 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
                   <span className="stay-banner-icon">🏨</span>
                   <span className="stay-banner-name">{stay.name}</span>
                   <span className="stay-banner-label">{stayLabel(stay, day)}</span>
+                  {stay.google_rating && (
+                    <span className="stay-banner-rating">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <span key={i} style={{ color: i + 1 <= Math.round(stay.google_rating) ? '#c4541f' : '#d8d0bd' }}>★</span>
+                      ))}
+                      <span style={{ marginLeft: '0.2rem' }}>{stay.google_rating.toFixed(1)}</span>
+                    </span>
+                  )}
                   {stay.address && <span className="stay-banner-address">📍 {stay.address}</span>}
                 </a>
               ))}

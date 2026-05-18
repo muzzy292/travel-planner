@@ -652,6 +652,7 @@ body {
 .stay-banner-icon { flex-shrink: 0; }
 .stay-banner-name { font-weight: 600; }
 .stay-banner-label { color: #7a3813; font-size: 0.78rem; background: #f5d0b0; border-radius: 999px; padding: 0.1rem 0.45rem; }
+.stay-banner-rating { font-size: 0.78rem; display: inline-flex; align-items: center; gap: 0.05rem; color: var(--text); letter-spacing: -0.04em; }
 
 /* Locked flight card in itinerary */
 .itin-flight-card {

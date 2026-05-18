@@ -98,7 +98,7 @@ export default function MapView({ pins = [], height = '300px', drawPath = false 
           title: pin.title,
           content: makePinElement(pin.type || 'other'),
         })
-        marker.addListener('click', () => {
+        marker.addListener('gmp-click', () => {
           infoWindowRef.current.setContent(infoContent(pin))
           infoWindowRef.current.open({ anchor: marker, map })
         })

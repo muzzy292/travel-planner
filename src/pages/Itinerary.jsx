@@ -100,7 +100,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
   async function fetchStays() {
     const { data } = await supabase
       .from('accommodations')
-      .select('id, name, type, check_in_date, check_out_date, check_in_time, check_out_time, address, lat, lng')
+      .select('id, name, type, check_in_date, check_out_date, check_in_time, check_out_time, address, lat, lng, google_rating, google_rating_count')
       .eq('trip_id', trip.id)
       .order('check_in_date')
     setStays(data || [])

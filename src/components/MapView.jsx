@@ -1,14 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { loadMaps } from '../lib/maps'
 
-// Pin type → colour
 const TYPE_COLOR = {
-  hotel:       '#2563eb',
+  hotel:       '#1f6f4d',
   flight:      '#7c3aed',
   activity:    '#16a34a',
   restaurant:  '#dc2626',
   transport:   '#d97706',
-  other:       '#64748b',
+  other:       '#6c6757',
 }
 
 const TYPE_EMOJI = {
@@ -16,25 +15,38 @@ const TYPE_EMOJI = {
   restaurant: '🍽️', transport: '🚌', other: '📍',
 }
 
-function markerIcon(type) {
+// Build a DOM element used as the AdvancedMarkerElement content
+function makePinElement(type) {
   const color = TYPE_COLOR[type] || TYPE_COLOR.other
-  return {
-    path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z',
-    fillColor: color,
-    fillOpacity: 1,
-    strokeColor: '#fff',
-    strokeWeight: 1.5,
-    scale: 1.6,
-    anchor: { x: 12, y: 22 },
-  }
+  const emoji = TYPE_EMOJI[type] || '📍'
+  const el = document.createElement('div')
+  el.style.cssText = [
+    `background:${color}`,
+    'color:#fff',
+    'border-radius:50% 50% 50% 0',
+    'transform:rotate(-45deg)',
+    'width:36px',
+    'height:36px',
+    'display:flex',
+    'align-items:center',
+    'justify-content:center',
+    'box-shadow:0 2px 8px rgba(0,0,0,.28)',
+    'border:2px solid rgba(255,255,255,.9)',
+    'cursor:pointer',
+  ].join(';')
+  const inner = document.createElement('div')
+  inner.style.cssText = 'transform:rotate(45deg);font-size:15px;line-height:1'
+  inner.textContent = emoji
+  el.appendChild(inner)
+  return el
 }
 
 function infoContent(pin) {
   return `
-    <div style="font-size:13px;max-width:220px;line-height:1.5">
+    <div style="font-size:13px;max-width:220px;line-height:1.5;font-family:'Geist',sans-serif">
       <div style="font-weight:600;margin-bottom:2px">${TYPE_EMOJI[pin.type] || '📍'} ${pin.title}</div>
-      ${pin.subtitle ? `<div style="color:#64748b;font-size:12px">${pin.subtitle}</div>` : ''}
-      ${pin.travelTime ? `<div style="margin-top:5px;color:#2563eb;font-size:12px">🚶 ${pin.travelTime} from hotel</div>` : ''}
+      ${pin.subtitle ? `<div style="color:#6c6757;font-size:12px">${pin.subtitle}</div>` : ''}
+      ${pin.travelTime ? `<div style="margin-top:5px;color:#1f6f4d;font-size:12px">🚶 ${pin.travelTime} from hotel</div>` : ''}
     </div>`
 }
 
@@ -55,13 +67,14 @@ export default function MapView({ pins = [], height = '300px', drawPath = false 
     async function init() {
       await loadMaps(apiKey)
       const { Map, InfoWindow, Polyline, LatLngBounds } = await window.google.maps.importLibrary('maps')
-      const { Marker } = await window.google.maps.importLibrary('marker')
+      const { AdvancedMarkerElement } = await window.google.maps.importLibrary('marker')
 
-      // Create map once
+      // Create map once — mapId is required for AdvancedMarkerElement
       if (!mapRef.current && containerRef.current) {
         mapRef.current = new Map(containerRef.current, {
           center: { lat: valid[0].lat, lng: valid[0].lng },
           zoom: 13,
+          mapId: 'DEMO_MAP_ID',
           mapTypeControl: false,
           streetViewControl: false,
           fullscreenControl: false,
@@ -73,38 +86,38 @@ export default function MapView({ pins = [], height = '300px', drawPath = false 
       if (!map) return
 
       // Clear old markers + polyline
-      markersRef.current.forEach(m => m.setMap(null))
+      markersRef.current.forEach(m => { m.map = null })
       markersRef.current = []
       if (polylineRef.current) { polylineRef.current.setMap(null); polylineRef.current = null }
 
-      // Add markers
+      // Place AdvancedMarkerElements
       for (const pin of valid) {
-        const marker = new Marker({
+        const marker = new AdvancedMarkerElement({
           position: { lat: pin.lat, lng: pin.lng },
           map,
           title: pin.title,
-          icon: markerIcon(pin.type || 'other'),
+          content: makePinElement(pin.type || 'other'),
         })
         marker.addListener('click', () => {
           infoWindowRef.current.setContent(infoContent(pin))
-          infoWindowRef.current.open(map, marker)
+          infoWindowRef.current.open({ anchor: marker, map })
         })
         markersRef.current.push(marker)
       }
 
-      // Fit bounds
+      // Fit all pins in view
       if (valid.length > 1) {
         const bounds = new LatLngBounds()
         valid.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }))
         map.fitBounds(bounds, 60)
       }
 
-      // Journey polyline
+      // Journey polyline (Bookings overview map)
       if (drawPath && valid.length > 1) {
         polylineRef.current = new Polyline({
           path: valid.map(p => ({ lat: p.lat, lng: p.lng })),
           geodesic: true,
-          strokeColor: '#2563eb',
+          strokeColor: '#1f6f4d',
           strokeOpacity: 0.55,
           strokeWeight: 2.5,
           map,

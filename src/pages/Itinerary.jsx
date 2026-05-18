@@ -268,9 +268,11 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
           const regularItems = allDayItems.filter((item) => item.item_type !== 'flight')
           const label = new Date(day + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
           const mapOpen = mapDays.has(day)
-          const dayHotel = staysForDay(day).find(s => s.lat && s.lng)
           const dayMapPins = [
-            ...(dayHotel ? [{ lat: dayHotel.lat, lng: dayHotel.lng, title: dayHotel.name, type: 'hotel' }] : []),
+            ...staysForDay(day).filter(s => s.lat && s.lng).map(s => ({
+              lat: s.lat, lng: s.lng, title: s.name,
+              subtitle: stayLabel(s, day), type: 'hotel',
+            })),
             ...regularItems.filter(i => i.lat && i.lng).map(i => ({
               lat: i.lat, lng: i.lng, title: i.title,
               subtitle: i.start_time ? i.start_time.slice(0,5) : null,

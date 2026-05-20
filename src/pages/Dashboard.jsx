@@ -354,7 +354,7 @@ function PhaseTabs({ value, trip, onChange }) {
   )
 }
 
-function BriefingHero({ phaseKey, trip, narrative, heroStats, actions, onPlayAudio }) {
+function BriefingHero({ phaseKey, trip, narrative, heroStats, actions, onPlayAudio, confidence }) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const daysToGo = getDaysToGo(trip)
   const start    = new Date(trip.start_date + 'T00:00:00')
@@ -375,7 +375,10 @@ function BriefingHero({ phaseKey, trip, narrative, heroStats, actions, onPlayAud
           <LiveTag />
         </div>
         <div className="bf-hero-top-r">
-          <ConfidenceMeter value={0.8} label="4 of 5 sources" />
+          <ConfidenceMeter
+            value={confidence ? confidence.filled / confidence.total : 0}
+            label={confidence ? `${confidence.filled} of ${confidence.total} sources` : '—'}
+          />
           <button className="bf-audio-btn" onClick={onPlayAudio} title="Read briefing aloud">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -854,6 +857,16 @@ export default function Dashboard({ trip }) {
   const heroStats = buildHeroStats(phaseKey, trip, stays, flights, budgetData, flightCount, activityCount)
   const tickers   = buildTickers(phaseKey, trip, stays, flights, budgetData, flightCount, forecast)
 
+  const confidenceSources = [
+    { label: 'flights',    ok: (flightCount   || 0) > 0 },
+    { label: 'stays',      ok: (stays?.length || 0) > 0 },
+    { label: 'budget',     ok: parseFloat(trip.budget || 0) > 0 },
+    { label: 'weather',    ok: forecast !== null },
+    { label: 'itinerary',  ok: (activityCount || 0) > 0 },
+  ]
+  const confidenceFilled = confidenceSources.filter(s => s.ok).length
+  const confidence = { filled: confidenceFilled, total: confidenceSources.length }
+
   function playAudio() {
     if (!('speechSynthesis' in window)) return
     const txt = narrative.map(s => s.t).join('')
@@ -883,6 +896,7 @@ export default function Dashboard({ trip }) {
           heroStats={heroStats}
           actions={PHASE_ACTIONS[phaseKey] || PHASE_ACTIONS.preTrip}
           onPlayAudio={playAudio}
+          confidence={confidence}
         />
 
         <TickerStrip tickers={tickers} />

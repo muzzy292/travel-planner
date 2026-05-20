@@ -305,7 +305,7 @@
 .bf-intel-body  { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.55; }
 
 /* ── Detail row (flights + weather) ──────────────────── */
-.bf-detail-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+.bf-detail-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
 .bf-flights-list { display: flex; flex-direction: column; }
 .bf-flight-row {
   display: grid; grid-template-columns: 100px 1fr auto auto;

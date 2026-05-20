@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchForecast, geocodeCity } from '../lib/weather'
+import { guessCurrency, fetchRate } from '../lib/currency'
 import '../styles/briefing.css'
 
 // ── Pure helpers ─────────────────────────────────────────────
@@ -585,7 +586,97 @@ function ForecastStrip({ days }) {
   )
 }
 
-function DetailRow({ flights, trip, forecast, forecastCity }) {
+const COMMON_CURRENCIES = [
+  'USD', 'EUR', 'GBP', 'JPY', 'VND', 'THB', 'IDR', 'SGD', 'MYR', 'PHP',
+  'INR', 'HKD', 'CNY', 'KRW', 'TWD', 'AED', 'CAD', 'NZD', 'MXN', 'CHF',
+  'NPR', 'LKR', 'KHR', 'ZAR', 'TRY', 'BRL', 'PEN', 'EGP', 'MAD',
+]
+
+function fmtConverted(n) {
+  if (n == null || isNaN(n)) return '—'
+  if (n >= 10000) return n.toLocaleString('en-AU', { maximumFractionDigits: 0 })
+  if (n >= 100)   return n.toLocaleString('en-AU', { maximumFractionDigits: 0 })
+  if (n >= 10)    return n.toLocaleString('en-AU', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  return n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function CurrencyCard({ defaultCurrency }) {
+  const [toCurrency, setToCurrency] = useState(defaultCurrency || 'USD')
+  const [rate, setRate]             = useState(null)
+  const [rateError, setRateError]   = useState(false)
+  const [amount, setAmount]         = useState('100')
+
+  // When the auto-detected currency arrives, switch to it once
+  useEffect(() => {
+    if (defaultCurrency && defaultCurrency !== 'USD') setToCurrency(defaultCurrency)
+  }, [defaultCurrency])
+
+  useEffect(() => {
+    setRate(null); setRateError(false)
+    fetchRate(toCurrency)
+      .then(({ rate: r }) => setRate(r))
+      .catch(() => setRateError(true))
+  }, [toCurrency])
+
+  const converted = rate != null && amount !== '' ? parseFloat(amount) * rate : null
+  const QUICK     = [10, 50, 100, 500]
+
+  return (
+    <section className="bf-card">
+      <CardHeader
+        title="Exchange rate · AUD"
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {rate && <span className="bf-badge confirmed" style={{ fontSize: 10 }}>● live</span>}
+            <select className="bf-currency-select" value={toCurrency} onChange={e => setToCurrency(e.target.value)}>
+              {COMMON_CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        }
+      />
+      {rateError
+        ? <p className="bf-muted-sm">Rate unavailable for {toCurrency}.</p>
+        : !rate
+        ? <p className="bf-muted-sm">Fetching rate…</p>
+        : <>
+            <div className="bf-currency-rate">
+              <span className="bf-currency-1">1 AUD</span>
+              <span className="bf-currency-eq">=</span>
+              <span className="bf-currency-2">
+                {fmtConverted(rate)} <span className="bf-tiny bf-muted">{toCurrency}</span>
+              </span>
+            </div>
+            <div className="bf-currency-calc">
+              <div className="bf-currency-input-row">
+                <span className="bf-currency-label">AUD $</span>
+                <input
+                  className="bf-currency-input"
+                  type="number"
+                  min="0"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                />
+                <span className="bf-currency-arrow">→</span>
+                <span className="bf-currency-result">
+                  {converted != null ? fmtConverted(converted) : '—'}
+                  <span className="bf-tiny bf-muted" style={{ marginLeft: 4 }}>{toCurrency}</span>
+                </span>
+              </div>
+              <div className="bf-currency-quick">
+                {QUICK.map(q => (
+                  <button key={q} className="bf-currency-quick-btn" onClick={() => setAmount(String(q))}>
+                    ${q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+      }
+    </section>
+  )
+}
+
+function DetailRow({ flights, trip, forecast, forecastCity, destCurrency }) {
   const today    = new Date(); today.setHours(0, 0, 0, 0)
   const todayStr = today.toISOString().slice(0, 10)
   const upcoming = (flights || []).filter(f => f.day_date >= todayStr)
@@ -650,6 +741,9 @@ function DetailRow({ flights, trip, forecast, forecastCity }) {
           : <p className="bf-muted-sm" style={{ padding: '0.5rem 0' }}>Fetching weather…</p>
         }
       </section>
+
+      {/* Currency */}
+      <CurrencyCard defaultCurrency={destCurrency} />
     </div>
   )
 }
@@ -843,7 +937,7 @@ export default function Dashboard({ trip }) {
           <IntelCard    items={INTEL_ITEMS} />
         </div>
 
-        <DetailRow flights={flights || []} trip={trip} forecast={forecast} forecastCity={forecastCity} />
+        <DetailRow flights={flights || []} trip={trip} forecast={forecast} forecastCity={forecastCity} destCurrency={guessCurrency(trip.destination || trip.name)} />
 
         <BudgetRow trip={trip} budgetData={budgetData} stays={stays || []} />
 

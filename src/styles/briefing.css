@@ -304,8 +304,8 @@
 .bf-intel-title { font-weight: 500; font-size: 13.5px; }
 .bf-intel-body  { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.55; }
 
-/* ── Detail row (flights + weather) ──────────────────── */
-.bf-detail-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
+/* ── Detail row (flights + weather + currency) ───────── */
+.bf-detail-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 20px; align-items: start; }
 .bf-flights-list { display: flex; flex-direction: column; }
 .bf-flight-row {
   display: grid; grid-template-columns: 100px 1fr auto auto;
@@ -326,6 +326,43 @@
 .bf-forecast-lo { font-size: 10px; color: var(--muted); }
 .bf-forecast-rain { font-family: var(--mono); font-size: 9.5px; }
 .bf-forecast-notes { display: flex; justify-content: space-between; margin-top: 7px; gap: 8px; }
+
+/* ── Currency card ────────────────────────────────────── */
+.bf-currency-select {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  background: var(--card-soft); border: 1px solid var(--line);
+  border-radius: 6px; padding: 3px 6px; color: var(--ink); cursor: pointer;
+}
+.bf-currency-rate {
+  display: flex; align-items: baseline; gap: 4px;
+  margin: 10px 0 14px;
+}
+.bf-currency-1 { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.bf-currency-eq { color: var(--muted); font-size: 13px; }
+.bf-currency-2 { font-family: var(--mono); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+.bf-currency-calc { display: flex; flex-direction: column; gap: 10px; }
+.bf-currency-input-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card-soft); border-radius: 8px; padding: 8px 10px;
+}
+.bf-currency-label { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.bf-currency-input {
+  width: 70px; font-family: var(--mono); font-size: 14px; font-weight: 600;
+  background: none; border: none; outline: none; color: var(--ink);
+  -moz-appearance: textfield;
+}
+.bf-currency-input::-webkit-outer-spin-button,
+.bf-currency-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.bf-currency-arrow { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+.bf-currency-result { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--accent); margin-left: auto; white-space: nowrap; }
+.bf-currency-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.bf-currency-quick-btn {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  background: var(--card-soft); border: 1px solid var(--line);
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; color: var(--muted);
+  transition: background .15s, color .15s;
+}
+.bf-currency-quick-btn:hover { background: var(--line); color: var(--ink); }
 
 /* ── Budget card ──────────────────────────────────────── */
 .bf-budget-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 20px; align-items: center; }

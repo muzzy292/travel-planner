@@ -273,7 +273,7 @@
 .bf-badge.sky       { color: var(--sky);    background: var(--sky-soft);    border-color: transparent; }
 
 /* ── 3-column intelligence section ───────────────────── */
-.bf-cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.bf-cols-2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
 .bf-cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
 
 /* Watching rows */

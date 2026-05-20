@@ -304,8 +304,9 @@
 .bf-intel-title { font-weight: 500; font-size: 13.5px; }
 .bf-intel-body  { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.55; }
 
-/* ── Detail row (flights + weather + currency) ───────── */
-.bf-detail-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 20px; align-items: start; }
+/* ── Detail row (flights | weather + currency stacked) ── */
+.bf-detail-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; align-items: start; }
+.bf-detail-col { display: flex; flex-direction: column; gap: 20px; }
 .bf-flights-list { display: flex; flex-direction: column; }
 .bf-flight-row {
   display: grid; grid-template-columns: 100px 1fr auto auto;

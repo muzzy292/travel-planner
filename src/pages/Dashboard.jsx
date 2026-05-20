@@ -721,29 +721,29 @@ function DetailRow({ flights, trip, forecast, forecastCity, destCurrency }) {
         </div>
       </section>
 
-      {/* Weather */}
-      <section className="bf-card">
-        <CardHeader
-          title="14-day weather"
-          right={forecast
-            ? <span className="bf-badge confirmed" style={{ fontSize: 10 }}>● live</span>
-            : <span className="bf-badge sky" style={{ fontSize: 10 }}>loading…</span>
+      {/* Weather + Currency stacked */}
+      <div className="bf-detail-col">
+        <section className="bf-card">
+          <CardHeader
+            title="14-day weather"
+            right={forecast
+              ? <span className="bf-badge confirmed" style={{ fontSize: 10 }}>● live</span>
+              : <span className="bf-badge sky" style={{ fontSize: 10 }}>loading…</span>
+            }
+          />
+          {forecast
+            ? <>
+                <ForecastStrip days={forecast.slice(0, 7)} />
+                <div className="bf-forecast-notes">
+                  <span className="bf-tiny bf-muted">Forecast · {forecastCity || trip.destination || trip.name}</span>
+                  <span className="bf-tiny bf-muted">Open-Meteo · 14-day</span>
+                </div>
+              </>
+            : <p className="bf-muted-sm" style={{ padding: '0.5rem 0' }}>Fetching weather…</p>
           }
-        />
-        {forecast
-          ? <>
-              <ForecastStrip days={forecast.slice(0, 7)} />
-              <div className="bf-forecast-notes">
-                <span className="bf-tiny bf-muted">Forecast · {forecastCity || trip.destination || trip.name}</span>
-                <span className="bf-tiny bf-muted">Open-Meteo · 14-day</span>
-              </div>
-            </>
-          : <p className="bf-muted-sm" style={{ padding: '0.5rem 0' }}>Fetching weather…</p>
-        }
-      </section>
-
-      {/* Currency */}
-      <CurrencyCard defaultCurrency={destCurrency} />
+        </section>
+        <CurrencyCard defaultCurrency={destCurrency} />
+      </div>
     </div>
   )
 }

@@ -576,8 +576,7 @@ function ForecastStrip({ days }) {
           <div key={i} className={`bf-forecast-day${rainy ? ' rainy' : ''}`}>
             <div className="bf-tiny bf-muted bf-mono">{d.d}</div>
             <div className="bf-forecast-emoji">{d.emoji}</div>
-            <div className="bf-forecast-hi">{d.hi}°</div>
-            <div className="bf-tiny bf-muted bf-mono">{d.lo}°</div>
+            <div className="bf-forecast-hi">{d.hi}°<span className="bf-forecast-lo">/{d.lo}°</span></div>
             <div className="bf-forecast-rain" style={{ color: rainy ? 'var(--sky)' : 'var(--muted-2)' }}>{d.p}%</div>
           </div>
         )

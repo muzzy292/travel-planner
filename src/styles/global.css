@@ -620,18 +620,18 @@ body {
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  background: #fef6f0;
-  border: 1.5px dashed #c4541f;
+  background: #fffbeb;
+  border: 1.5px dashed #f59e0b;
   border-radius: var(--radius);
   margin: 0.35rem 0;
 }
 .gap-icon { font-size: 1.1rem; flex-shrink: 0; }
 .gap-body { flex: 1; display: flex; flex-direction: column; gap: 0.1rem; }
-.gap-title { font-weight: 600; font-size: 0.88rem; color: #9e3a13; }
-.gap-dates { font-size: 0.78rem; color: #7a2c0d; }
-.card-warning { border-color: #c4541f; background: #fef6f0; }
-.card-warning .label { color: #9e3a13; }
-.card-warning span:last-child { color: #9e3a13; font-weight: 700; }
+.gap-title { font-weight: 600; font-size: 0.88rem; color: #92400e; }
+.gap-dates { font-size: 0.78rem; color: #b45309; }
+.card-warning { border-color: #f59e0b; background: #fffbeb; }
+.card-warning .label { color: #92400e; }
+.card-warning span:last-child { color: #92400e; font-weight: 700; }
 
 /* Accommodation stay banner in itinerary */
 .stay-banner {

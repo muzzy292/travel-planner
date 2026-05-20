@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fetchForecast, geocodeCity } from '../lib/weather'
 import { guessCurrency, fetchRate } from '../lib/currency'
+import { fetchCountryInfo } from '../lib/countries'
 import '../styles/briefing.css'
 
 // ── Pure helpers ─────────────────────────────────────────────
@@ -251,55 +252,8 @@ function buildTickers(phaseKey, trip, stays, flights, budgetData, flightCount, f
   return tickers
 }
 
-function buildWatching(stays, flights) {
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const todayStr = today.toISOString().slice(0, 10)
-  const items = []
-
-  stays?.slice(0, 2).forEach(stay => {
-    items.push({
-      what: stay.name || 'Hotel',
-      signal: stay.price ? 'Booked rate' : 'Reservation',
-      value: stay.price ? fmtMoney(parseFloat(stay.price)) : 'Confirmed',
-      since: `check-in ${formatDateShort(stay.check_in_date)}`,
-      state: 'flat',
-    })
-  })
-
-  flights?.filter(f => f.day_date >= todayStr).slice(0, 2).forEach(flight => {
-    const [from, to] = (flight.location || '').split(' → ')
-    items.push({
-      what: from && to ? `${from} → ${to}` : flight.title,
-      signal: 'Flight status',
-      value: flight.status || 'confirmed',
-      since: formatDateShort(flight.day_date),
-      state: 'flat',
-    })
-  })
-
-  return items.slice(0, 4)
-}
-
-function buildActionList(upcomingItems) {
-  if (!upcomingItems || upcomingItems.length === 0) {
-    return [{ id: 'start', label: 'Add items to your itinerary', status: 'now', due: 'Get started' }]
-  }
-  return upcomingItems.slice(0, 6).map(item => ({
-    id: item.id,
-    label: item.title,
-    status: item.status === 'confirmed' ? 'done' : 'queued',
-    due: item.start_time ? item.start_time.slice(0, 5) : formatDateShort(item.day_date),
-  }))
-}
 
 const SOURCE_LABELS = { trip: 'Itinerary', wx: 'Open-Meteo', fx: 'Wise · OANDA', deals: 'Price watch', ops: 'Operator feed', tide: 'Tide data', group: 'Group' }
-
-const INTEL_ITEMS = [
-  { icon: '✈️', title: 'Flight check-in', body: 'Online check-in opens 24h before departure. Download boarding passes to Apple Wallet or Google Pay for offline access.' },
-  { icon: '💳', title: 'Cards & cash',    body: 'Notify your bank before travel to avoid blocks. Carry local currency for markets and vendors who may not accept cards.' },
-  { icon: '📱', title: 'Connectivity',    body: 'Consider a local SIM or eSIM for data. Download offline maps before landing — Google Maps works well.' },
-  { icon: '🔒', title: 'Documents',       body: 'Keep digital copies of passport, insurance, and booking confirmations in a secure cloud folder, accessible offline.' },
-]
 
 const PHASE_ACTIONS = {
   preTrip: [
@@ -493,77 +447,81 @@ function TickerStrip({ tickers }) {
   )
 }
 
-function WatchingCard({ items }) {
+const TYPE_ICONS = { flight: '✈️', accommodation: '🏨', activity: '🎯', transport: '🚌', restaurant: '🍽️', other: '📌' }
+
+function NextUpCard({ items }) {
+  const shown = (items || []).slice(0, 5)
   return (
     <section className="bf-card">
-      <CardHeader title="Watching" right={<Link to="/accommodation" className="bf-link">Bookings →</Link>} />
-      {items.length === 0
-        ? <p className="bf-muted-sm">Add stays and flights in Bookings to watch them here.</p>
-        : items.map((w, i) => (
-          <div key={i} className="bf-watch-row" style={{ borderBottom: i < items.length - 1 ? '1px dashed var(--line)' : 'none' }}>
-            <div>
-              <div className="bf-watch-name">{w.what}</div>
-              <div className="bf-watch-sig">{w.signal}</div>
-            </div>
-            <div className="bf-watch-r">
-              <div className="bf-watch-v">{w.value}</div>
-              <div className={`bf-watch-d ${w.state}`}>
-                {w.state === 'up' ? '▲' : w.state === 'down' ? '▼' : '■'} {w.since}
-              </div>
-            </div>
+      <CardHeader title="Next up" right={<Link to="/itinerary" className="bf-link">Itinerary →</Link>} />
+      {shown.length === 0
+        ? <p className="bf-muted-sm">No upcoming events. <Link to="/itinerary" style={{ color: 'var(--accent)' }}>Add to itinerary →</Link></p>
+        : <div className="bf-nextup-list">
+            {shown.map((item, i) => {
+              const dateLabel = new Date(item.day_date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+              const isConfirmed = item.status === 'confirmed'
+              return (
+                <div key={item.id} className="bf-nextup-row" style={{ borderBottom: i < shown.length - 1 ? '1px dashed var(--line)' : 'none' }}>
+                  <span className="bf-nextup-icon">{TYPE_ICONS[item.item_type] || '📌'}</span>
+                  <div className="bf-nextup-body">
+                    <div className="bf-nextup-title">{item.title}</div>
+                    <div className="bf-tiny bf-muted bf-mono">
+                      {dateLabel}{item.start_time ? ` · ${item.start_time.slice(0, 5)}` : ''}
+                    </div>
+                  </div>
+                  <span className={`bf-badge ${isConfirmed ? 'confirmed' : 'sky'}`} style={{ fontSize: 9.5, flexShrink: 0 }}>
+                    {item.status || 'planned'}
+                  </span>
+                </div>
+              )
+            })}
           </div>
-        ))
       }
     </section>
   )
 }
 
-function ActionsCard({ items }) {
-  const nowCount = items.filter(p => p.status === 'now').length
+function DestRow({ icon, label, value }) {
   return (
-    <section className="bf-card">
-      <CardHeader
-        title="Actions"
-        right={nowCount > 0
-          ? <span className="bf-badge warn">{nowCount} due now</span>
-          : <span className="bf-badge confirmed">all clear</span>
-        }
-      />
-      <div className="bf-actions-list">
-        {items.map(p => {
-          const tone  = p.status === 'now' ? 'warm' : p.status === 'done' ? 'confirmed' : p.status === 'blocked' ? 'gold' : 'sky'
-          const label = p.status === 'now' ? 'DO NOW' : p.status === 'done' ? 'DONE' : p.status === 'blocked' ? 'WAITING' : 'QUEUED'
-          return (
-            <div key={p.id} className="bf-action-row">
-              <span className={`bf-badge ${tone}`} style={{ fontSize: 10, minWidth: 70, justifyContent: 'center' }}>{label}</span>
-              <span className="bf-action-label" style={{
-                textDecoration: p.status === 'done' ? 'line-through' : 'none',
-                color: p.status === 'done' ? 'var(--muted-2)' : 'var(--ink)',
-              }}>{p.label}</span>
-              <span className="bf-tiny bf-muted bf-mono">{p.due}</span>
-            </div>
-          )
-        })}
-      </div>
-    </section>
+    <div className="bf-dest-row">
+      <span className="bf-dest-icon">{icon}</span>
+      <span className="bf-dest-label">{label}</span>
+      <span className="bf-dest-value">{value}</span>
+    </div>
   )
 }
 
-function IntelCard({ items }) {
+function DestinationCard({ trip }) {
+  const [info,    setInfo]    = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!trip) return
+    setInfo(null); setLoading(true)
+    fetchCountryInfo(trip.destination || trip.name)
+      .then(d => { setInfo(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [trip?.id])
+
+  const title = info ? `${info.flag ? info.flag + ' ' : ''}${info.name || trip.destination || trip.name}` : (trip.destination || trip.name || 'Destination')
+
   return (
     <section className="bf-card">
-      <CardHeader title="Local intel" right={<span className="bf-muted-sm">travel tips</span>} />
-      <div className="bf-intel-list">
-        {items.map((it, i) => (
-          <div key={i} className="bf-intel-item">
-            <span className="bf-intel-icon">{it.icon}</span>
-            <div>
-              <div className="bf-intel-title">{it.title}</div>
-              <div className="bf-intel-body">{it.body}</div>
-            </div>
+      <CardHeader title={title} right={<span className="bf-muted-sm">destination info</span>} />
+      {loading
+        ? <p className="bf-muted-sm">Loading…</p>
+        : !info
+        ? <p className="bf-muted-sm">No info found — try setting your destination in Settings.</p>
+        : <div className="bf-dest-grid">
+            {info.capital      && <DestRow icon="🏛️" label="Capital"     value={info.capital} />}
+            {info.languages    && <DestRow icon="🗣️" label="Language"    value={info.languages} />}
+            {info.currency     && <DestRow icon="💱" label="Currency"    value={info.currency} />}
+            {info.timeDiff     && <DestRow icon="🕐" label="Time zone"   value={info.timeDiff} />}
+            {info.callingCode  && <DestRow icon="📞" label="Dial code"   value={info.callingCode} />}
+            {info.plugs        && <DestRow icon="🔌" label="Plug type"   value={info.plugs} />}
+            {info.adapterNeeded && <DestRow icon="🧳" label="Adapter"    value={info.adapterNeeded} />}
           </div>
-        ))}
-      </div>
+      }
     </section>
   )
 }
@@ -895,8 +853,6 @@ export default function Dashboard({ trip }) {
   const narrative = buildNarrative(phaseKey, trip, stays, flights, budgetData, flightCount)
   const heroStats = buildHeroStats(phaseKey, trip, stays, flights, budgetData, flightCount, activityCount)
   const tickers   = buildTickers(phaseKey, trip, stays, flights, budgetData, flightCount, forecast)
-  const watching  = buildWatching(stays, flights)
-  const actions   = buildActionList(upcomingItems)
 
   function playAudio() {
     if (!('speechSynthesis' in window)) return
@@ -931,10 +887,9 @@ export default function Dashboard({ trip }) {
 
         <TickerStrip tickers={tickers} />
 
-        <div className="bf-cols-3">
-          <WatchingCard items={watching} />
-          <ActionsCard  items={actions}  />
-          <IntelCard    items={INTEL_ITEMS} />
+        <div className="bf-cols-2">
+          <NextUpCard      items={upcomingItems} />
+          <DestinationCard trip={trip} />
         </div>
 
         <DetailRow flights={flights || []} trip={trip} forecast={forecast} forecastCity={forecastCity} destCurrency={guessCurrency(trip.destination || trip.name)} />

@@ -572,11 +572,8 @@ function RateSparkline({ currency }) {
   const { data: history } = useQuery({
     queryKey: ['rate-history', chartCcy],
     queryFn: async () => {
-      const end   = new Date()
-      const start = new Date(end); start.setDate(start.getDate() - 30)
-      const fmt   = d => d.toISOString().slice(0, 10)
-      const res   = await fetch(`https://api.frankfurter.app/${fmt(start)}..${fmt(end)}?from=AUD&to=${chartCcy}`)
-      const data  = await res.json()
+      const res  = await fetch(`/api/rate-history?to=${chartCcy}`)
+      const data = await res.json()
       if (!data.rates) return []
       return Object.entries(data.rates)
         .sort(([a], [b]) => a.localeCompare(b))

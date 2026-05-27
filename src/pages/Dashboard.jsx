@@ -557,6 +557,81 @@ function ForecastStrip({ days }) {
   )
 }
 
+// Currencies supported by Frankfurter (ECB data) for historical charts
+const FRANKFURTER_CURRENCIES = new Set([
+  'USD','EUR','GBP','JPY','CAD','AUD','CHF','CNY','HKD','NZD',
+  'SEK','NOK','DKK','SGD','MYR','PHP','IDR','THB','INR','KRW',
+  'MXN','BRL','ZAR','TRY','PLN','HUF','CZK','RON','BGN','ILS',
+])
+
+function RateSparkline({ currency }) {
+  // Fall back to USD for currencies not in Frankfurter (e.g. VND, AED, TWD)
+  const chartCcy   = FRANKFURTER_CURRENCIES.has(currency) ? currency : 'USD'
+  const isFallback = chartCcy !== currency
+
+  const { data: history } = useQuery({
+    queryKey: ['rate-history', chartCcy],
+    queryFn: async () => {
+      const end   = new Date()
+      const start = new Date(end); start.setDate(start.getDate() - 30)
+      const fmt   = d => d.toISOString().slice(0, 10)
+      const res   = await fetch(`https://api.frankfurter.app/${fmt(start)}..${fmt(end)}?from=AUD&to=${chartCcy}`)
+      const data  = await res.json()
+      if (!data.rates) return []
+      return Object.entries(data.rates)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, rates]) => ({ date, value: rates[chartCcy] }))
+    },
+    staleTime: 1000 * 60 * 60, // 1-hour cache — rates don't move that fast
+    enabled: true,
+  })
+
+  if (!history || history.length < 3) return null
+
+  const W = 280, H = 52, PAD = 3
+  const values   = history.map(p => p.value)
+  const minV     = Math.min(...values)
+  const maxV     = Math.max(...values)
+  const rangeV   = maxV - minV || 0.0001
+  const pts      = history.map((p, i) => [
+    PAD + (i / (history.length - 1)) * (W - PAD * 2),
+    PAD + (1 - (p.value - minV) / rangeV) * (H - PAD * 2),
+  ])
+  const linePath = pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ')
+  const areaPath = `${linePath} L${pts[pts.length-1][0]} ${H} L${pts[0][0]} ${H} Z`
+  const change   = ((values[values.length - 1] - values[0]) / values[0]) * 100
+  const isUp     = change >= 0
+  const changeColor = isUp ? '#2c6da6' : '#c4541f'
+
+  return (
+    <div className="bf-rate-chart">
+      <div className="bf-rate-chart-header">
+        <span className="bf-tiny bf-muted">
+          30-day AUD/{chartCcy}{isFallback ? ` (no ${currency} history)` : ''}
+        </span>
+        <span className="bf-tiny bf-mono" style={{ color: changeColor, fontWeight: 600 }}>
+          {isUp ? '▲' : '▼'} {Math.abs(change).toFixed(1)}%
+        </span>
+      </div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', overflow: 'visible' }}>
+        <defs>
+          <linearGradient id={`rg-${chartCcy}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#2c6da6" stopOpacity="0.18"/>
+            <stop offset="100%" stopColor="#2c6da6" stopOpacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d={areaPath} fill={`url(#rg-${chartCcy})`} />
+        <path d={linePath} fill="none" stroke="#2c6da6" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+        <circle cx={pts[pts.length-1][0]} cy={pts[pts.length-1][1]} r="3" fill="#2c6da6" />
+      </svg>
+      <div className="bf-rate-chart-labels">
+        <span className="bf-tiny bf-muted">Low {fmtConverted(minV)}</span>
+        <span className="bf-tiny bf-muted">High {fmtConverted(maxV)}</span>
+      </div>
+    </div>
+  )
+}
+
 const COMMON_CURRENCIES = [
   'USD', 'EUR', 'GBP', 'JPY', 'VND', 'THB', 'IDR', 'SGD', 'MYR', 'PHP',
   'INR', 'HKD', 'CNY', 'KRW', 'TWD', 'AED', 'CAD', 'NZD', 'MXN', 'CHF',
@@ -641,6 +716,7 @@ function CurrencyCard({ defaultCurrency }) {
                 ))}
               </div>
             </div>
+            <RateSparkline currency={toCurrency} />
           </>
       }
     </section>

@@ -379,6 +379,11 @@
 }
 .bf-currency-quick-btn:hover { background: var(--line); color: var(--ink); }
 
+/* ── Rate sparkline chart ─────────────────────────────── */
+.bf-rate-chart { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.bf-rate-chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.bf-rate-chart-labels { display: flex; justify-content: space-between; margin-top: 3px; }
+
 /* ── Budget card ──────────────────────────────────────── */
 .bf-budget-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 20px; align-items: center; }
 .bf-budget-bar { display: flex; height: 14px; border-radius: 8px; overflow: hidden; margin-top: 6px; }

@@ -355,7 +355,7 @@ function PhaseTabs({ value, trip, onChange }) {
   )
 }
 
-function BriefingHero({ phaseKey, trip, narrative, heroStats, actions, onPlayAudio, confidence }) {
+function BriefingHero({ phaseKey, trip, narrative, heroStats, actions, onPlayAudio, onCopy, confidence }) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const daysToGo = getDaysToGo(trip)
   const start    = new Date(trip.start_date + 'T00:00:00')
@@ -376,16 +376,25 @@ function BriefingHero({ phaseKey, trip, narrative, heroStats, actions, onPlayAud
           <LiveTag />
         </div>
         <div className="bf-hero-top-r">
-          <ConfidenceMeter
-            value={confidence ? confidence.filled / confidence.total : 0}
-            label={confidence ? `${confidence.filled} of ${confidence.total} sources` : '—'}
-          />
+          {phaseKey !== 'inTrip' && (
+            <ConfidenceMeter
+              value={confidence ? confidence.filled / confidence.total : 0}
+              label={confidence ? `${confidence.filled} of ${confidence.total} sources` : '—'}
+            />
+          )}
+          <button className="bf-audio-btn" onClick={onCopy} title="Copy briefing to clipboard">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Copy
+          </button>
           <button className="bf-audio-btn" onClick={onPlayAudio} title="Read briefing aloud">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
               <path d="M15 9a5 5 0 0 1 0 6" />
             </svg>
-            Read aloud
+            Read
           </button>
         </div>
       </div>
@@ -898,6 +907,11 @@ export default function Dashboard({ trip }) {
     window.speechSynthesis.speak(u)
   }
 
+  function copyBriefing() {
+    const txt = narrative.map(s => s.t).join('')
+    navigator.clipboard?.writeText(txt).catch(() => {})
+  }
+
   return (
     <div className="bf-root">
       <div className="bf-page">
@@ -918,6 +932,7 @@ export default function Dashboard({ trip }) {
           heroStats={heroStats}
           actions={PHASE_ACTIONS[phaseKey] || PHASE_ACTIONS.preTrip}
           onPlayAudio={playAudio}
+          onCopy={copyBriefing}
           confidence={confidence}
         />
 

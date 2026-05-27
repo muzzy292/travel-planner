@@ -75,10 +75,10 @@
   box-shadow: var(--shadow-sm);
 }
 .bf-phase-tab {
-  font-family: var(--sans); padding: 8px 14px;
+  font-family: var(--sans); padding: 8px 14px; min-height: 44px;
   border: none; background: transparent; cursor: pointer;
   border-radius: 10px; display: flex; flex-direction: column;
-  gap: 1px; align-items: flex-start;
+  gap: 1px; align-items: flex-start; justify-content: center;
   color: var(--muted); line-height: 1.1;
   transition: background .12s, color .12s;
 }
@@ -121,7 +121,7 @@
 .bf-audio-btn {
   font-family: var(--mono); font-size: 11.5px; letter-spacing: .02em;
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 11px;
+  padding: 6px 11px; min-height: 44px;
   background: rgba(250,247,241,.06);
   color: rgba(250,247,241,.85);
   border: 1px solid rgba(250,247,241,.12);
@@ -197,6 +197,7 @@
   padding: 9px 16px; border-radius: 999px; cursor: pointer; border: none;
   display: inline-flex; align-items: center; gap: 8px;
   letter-spacing: -0.005em; transition: background .12s;
+  min-height: 44px;
 }
 .bf-btn-icon { font-size: 14px; line-height: 1; }
 .bf-btn.primary { background: #faf7f1; color: #1b1a17; }
@@ -267,7 +268,7 @@
   padding: 3px 8px; border-radius: 999px;
   background: var(--card-soft); color: var(--muted); border: 1px solid var(--line);
 }
-.bf-badge.confirmed { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+.bf-badge.confirmed { color: var(--sky);    background: var(--sky-soft);    border-color: transparent; }
 .bf-badge.warn      { color: var(--warm);   background: var(--warm-soft);   border-color: transparent; }
 .bf-badge.gold      { color: var(--gold);   background: var(--gold-soft);   border-color: transparent; }
 .bf-badge.sky       { color: var(--sky);    background: var(--sky-soft);    border-color: transparent; }

@@ -939,7 +939,31 @@ export default function Dashboard({ trip }) {
         <TickerStrip tickers={tickers} />
 
         <div className="bf-cols-2">
-          <NextUpCard      items={upcomingItems} />
+          <NextUpCard items={(() => {
+            // Merge itinerary items with upcoming check-ins from Bookings
+            const checkIns = (stays || [])
+              .filter(s => s.check_in_date >= (fromDate || ''))
+              .map(s => ({
+                id: `stay-checkin-${s.id}`,
+                title: s.name,
+                day_date: s.check_in_date,
+                start_time: s.check_in_time || null,
+                item_type: 'accommodation',
+                status: s.status || 'confirmed',
+              }))
+            const checkOuts = (stays || [])
+              .filter(s => s.check_out_date >= (fromDate || ''))
+              .map(s => ({
+                id: `stay-checkout-${s.id}`,
+                title: `Check-out: ${s.name}`,
+                day_date: s.check_out_date,
+                start_time: s.check_out_time || null,
+                item_type: 'accommodation',
+                status: s.status || 'confirmed',
+              }))
+            return [...(upcomingItems || []), ...checkIns, ...checkOuts]
+              .sort((a, b) => a.day_date < b.day_date ? -1 : a.day_date > b.day_date ? 1 : (a.start_time || '') < (b.start_time || '') ? -1 : 1)
+          })()} />
           <DestinationCard trip={trip} />
         </div>
 

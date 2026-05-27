@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import AccommodationModal from '../components/AccommodationModal'
 import ParseConfirmationModal from '../components/ParseConfirmationModal'
@@ -33,153 +34,109 @@ function nightsBetween(checkIn, checkOut) {
 }
 
 export default function Accommodation({ trip }) {
-  const [stays, setStays] = useState([])
-  const [flights, setFlights] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [modal, setModal] = useState(null)
   const [flightModal, setFlightModal] = useState(null)
   const [showParse, setShowParse] = useState(false)
   const [showMap, setShowMap] = useState(false)
 
-  useEffect(() => {
-    if (trip) { fetchStays(); fetchFlights() }
-  }, [trip?.id])
+  const { data: stays = [], isLoading: staysLoading } = useQuery({
+    queryKey: ['stays', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('accommodations').select('*').eq('trip_id', trip.id).order('check_in_date', { ascending: true })
+      return data || []
+    },
+    enabled: !!trip?.id,
+  })
 
-  async function fetchStays() {
-    setLoading(true)
-    const { data } = await supabase
-      .from('accommodations')
-      .select('*')
-      .eq('trip_id', trip.id)
-      .order('check_in_date', { ascending: true })
-    setStays(data || [])
-    setLoading(false)
+  const { data: flights = [], isLoading: flightsLoading } = useQuery({
+    queryKey: ['accommodation-flights', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('itinerary_items').select('*').eq('trip_id', trip.id).eq('item_type', 'flight').order('day_date').order('start_time')
+      return data || []
+    },
+    enabled: !!trip?.id,
+  })
+
+  function setStays(updater) {
+    queryClient.setQueryData(['stays', trip.id], typeof updater === 'function' ? updater : () => updater)
   }
 
-  async function fetchFlights() {
-    const { data } = await supabase
-      .from('itinerary_items')
-      .select('*')
-      .eq('trip_id', trip.id)
-      .eq('item_type', 'flight')
-      .order('day_date')
-      .order('start_time')
-    setFlights(data || [])
+  function setFlights(updater) {
+    queryClient.setQueryData(['accommodation-flights', trip.id], typeof updater === 'function' ? updater : () => updater)
   }
 
   async function saveFlight(payload) {
     if (flightModal.mode === 'add') {
-      const { data, error } = await supabase
-        .from('itinerary_items')
-        .insert({ ...payload, trip_id: trip.id, order_index: 0 })
-        .select().single()
-      if (!error && data) setFlights((prev) => [...prev, data].sort((a, b) => a.day_date.localeCompare(b.day_date)))
+      const { data, error } = await supabase.from('itinerary_items').insert({ ...payload, trip_id: trip.id, order_index: 0 }).select().single()
+      if (!error && data) setFlights((prev) => [...(prev || []), data].sort((a, b) => a.day_date.localeCompare(b.day_date)))
     } else {
-      const { data, error } = await supabase
-        .from('itinerary_items')
-        .update(payload)
-        .eq('id', flightModal.item.id)
-        .select().single()
-      if (!error && data) setFlights((prev) => prev.map((f) => f.id === flightModal.item.id ? data : f))
+      const { data, error } = await supabase.from('itinerary_items').update(payload).eq('id', flightModal.item.id).select().single()
+      if (!error && data) setFlights((prev) => (prev || []).map((f) => f.id === flightModal.item.id ? data : f))
     }
     setFlightModal(null)
   }
 
   async function deleteFlight(id) {
     await supabase.from('itinerary_items').delete().eq('id', id)
-    setFlights((prev) => prev.filter((f) => f.id !== id))
+    setFlights((prev) => (prev || []).filter((f) => f.id !== id))
     setFlightModal(null)
   }
 
   async function saveStay(payload) {
     if (modal.mode === 'add') {
-      const { data, error } = await supabase
-        .from('accommodations')
-        .insert({ ...payload, trip_id: trip.id })
-        .select()
-        .single()
-      if (!error) setStays((prev) => [...prev, data].sort((a, b) => new Date(a.check_in_date) - new Date(b.check_in_date)))
+      const { data, error } = await supabase.from('accommodations').insert({ ...payload, trip_id: trip.id }).select().single()
+      if (!error && data) setStays((prev) => [...(prev || []), data].sort((a, b) => new Date(a.check_in_date) - new Date(b.check_in_date)))
     } else {
-      const { data, error } = await supabase
-        .from('accommodations')
-        .update(payload)
-        .eq('id', modal.item.id)
-        .select()
-        .single()
-      if (!error) setStays((prev) => prev.map((s) => (s.id === modal.item.id ? data : s)))
+      const { data, error } = await supabase.from('accommodations').update(payload).eq('id', modal.item.id).select().single()
+      if (!error && data) setStays((prev) => (prev || []).map((s) => (s.id === modal.item.id ? data : s)))
     }
     setModal(null)
   }
 
   async function handleImport(parsedItems) {
     const stayItems = parsedItems.filter((i) => i.item_type === 'accommodation')
-    const otherItems = parsedItems.filter((i) => i.item_type !== 'accommodation')
 
     // Insert stays
     for (const item of stayItems) {
-      const { data } = await supabase
-        .from('accommodations')
-        .insert({
-          trip_id: trip.id,
-          name: item.title,
-          type: 'Hotel',
-          address: item.address || item.location || null,
-          city: item.city || null,
-          check_in_date: item.day_date,
-          check_in_time: item.start_time || null,
-          check_out_date: item.check_out_date || null,
-          check_out_time: item.check_out_time || null,
-          confirmation_number: item.confirmation_number || null,
-          notes: item.notes || null,
-        })
-        .select()
-        .single()
-      if (data) setStays((prev) => [...prev, data].sort((a, b) => new Date(a.check_in_date) - new Date(b.check_in_date)))
+      const { data } = await supabase.from('accommodations').insert({
+        trip_id: trip.id, name: item.title, type: 'Hotel',
+        address: item.address || item.location || null, city: item.city || null,
+        check_in_date: item.day_date, check_in_time: item.start_time || null,
+        check_out_date: item.check_out_date || null, check_out_time: item.check_out_time || null,
+        confirmation_number: item.confirmation_number || null, notes: item.notes || null,
+      }).select().single()
+      if (data) setStays((prev) => [...(prev || []), data].sort((a, b) => new Date(a.check_in_date) - new Date(b.check_in_date)))
     }
 
     // Push all items to itinerary
     const itinInserts = parsedItems.map((item, idx) => ({
-      trip_id: trip.id,
-      day_date: item.day_date,
+      trip_id: trip.id, day_date: item.day_date,
       title: item.item_type === 'accommodation' ? `Check-in: ${item.title}` : item.title,
-      notes: item.notes || null,
-      location: item.address || item.location || null,
-      start_time: item.start_time || null,
-      item_type: item.item_type || 'other',
-      status: 'tentative',
-      order_index: idx,
+      notes: item.notes || null, location: item.address || item.location || null,
+      start_time: item.start_time || null, item_type: item.item_type || 'other',
+      status: 'tentative', order_index: idx,
     }))
-    if (itinInserts.length > 0) {
-      await supabase.from('itinerary_items').insert(itinInserts)
-    }
+    if (itinInserts.length > 0) await supabase.from('itinerary_items').insert(itinInserts)
 
-    // Also push check-out day to itinerary for accommodation
-    const checkoutInserts = stayItems
-      .filter((i) => i.check_out_date)
-      .map((item, idx) => ({
-        trip_id: trip.id,
-        day_date: item.check_out_date,
-        title: `Check-out: ${item.title}`,
-        notes: null,
-        location: item.address || item.location || null,
-        start_time: item.check_out_time || null,
-        item_type: 'accommodation',
-        status: 'tentative',
-        order_index: itinInserts.length + idx,
-      }))
-    if (checkoutInserts.length > 0) {
-      await supabase.from('itinerary_items').insert(checkoutInserts)
-    }
+    // Push check-out day to itinerary for accommodation
+    const checkoutInserts = stayItems.filter((i) => i.check_out_date).map((item, idx) => ({
+      trip_id: trip.id, day_date: item.check_out_date, title: `Check-out: ${item.title}`,
+      notes: null, location: item.address || item.location || null,
+      start_time: item.check_out_time || null, item_type: 'accommodation',
+      status: 'tentative', order_index: itinInserts.length + idx,
+    }))
+    if (checkoutInserts.length > 0) await supabase.from('itinerary_items').insert(checkoutInserts)
   }
 
   async function deleteStay(id) {
     await supabase.from('accommodations').delete().eq('id', id)
-    setStays((prev) => prev.filter((s) => s.id !== id))
+    setStays((prev) => (prev || []).filter((s) => s.id !== id))
     setModal(null)
   }
 
   if (!trip) return <div className="page"><p>No active trip.</p></div>
-  if (loading) return <div className="page"><p>Loading…</p></div>
+  if (staysLoading || flightsLoading) return <div className="page"><p>Loading…</p></div>
 
   const totalNights = stays.reduce((sum, s) => sum + (nightsBetween(s.check_in_date, s.check_out_date) || 0), 0)
   const totalCost = stays.reduce((sum, s) => sum + (parseFloat(s.price || 0)), 0)

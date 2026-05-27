@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { supabase } from '../lib/supabase'
@@ -31,10 +32,7 @@ function buildCalendarEvent(item, day) {
 }
 
 export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCalendarEvent }) {
-  const [items, setItems] = useState([])
-  const [stays, setStays] = useState([])
-  const [calendarEvents, setCalendarEvents] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [modal, setModal] = useState(null)
   const [stayModal, setStayModal] = useState(null)
   const [syncError, setSyncError] = useState(null)
@@ -43,27 +41,46 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
 
   const sensors = useSensors(useSensor(PointerSensor))
 
-  useEffect(() => {
-    if (trip) {
-      fetchItems()
-      fetchCalendarEvents()
-      fetchStays()
-    }
-  }, [trip?.id])
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['itinerary', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('itinerary_items').select('*').eq('trip_id', trip.id).order('day_date').order('order_index')
+      const loaded = data || []
+      // Background geocoding — fire and forget after initial load
+      setTimeout(() => geocodeAllMissingItems(loaded), 0)
+      return loaded
+    },
+    enabled: !!trip?.id,
+  })
 
-  async function fetchItems() {
-    setLoading(true)
-    const { data } = await supabase
-      .from('itinerary_items')
-      .select('*')
-      .eq('trip_id', trip.id)
-      .order('day_date')
-      .order('order_index')
-    const loaded = data || []
-    setItems(loaded)
-    setLoading(false)
-    // Geocode any items with a location string but no coordinates, in the background
-    geocodeAllMissingItems(loaded)
+  const { data: stays = [] } = useQuery({
+    queryKey: ['itinerary-stays', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('accommodations').select('id, name, type, check_in_date, check_out_date, check_in_time, check_out_time, address, lat, lng, google_rating, google_rating_count').eq('trip_id', trip.id).order('check_in_date')
+      return data || []
+    },
+    enabled: !!trip?.id,
+  })
+
+  const { data: calendarEvents = [] } = useQuery({
+    queryKey: ['calendar-events', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('calendar_events').select('*').eq('trip_id', trip.id)
+      return data || []
+    },
+    enabled: !!trip?.id,
+  })
+
+  function setItems(updater) {
+    queryClient.setQueryData(['itinerary', trip.id], typeof updater === 'function' ? updater : () => updater)
+  }
+
+  function setStays(updater) {
+    queryClient.setQueryData(['itinerary-stays', trip.id], typeof updater === 'function' ? updater : () => updater)
+  }
+
+  function setCalendarEvents(updater) {
+    queryClient.setQueryData(['calendar-events', trip.id], typeof updater === 'function' ? updater : () => updater)
   }
 
   async function geocodeAllMissingItems(loadedItems) {
@@ -95,15 +112,6 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     } catch (e) {
       console.error('Geocoder init error:', e)
     }
-  }
-
-  async function fetchStays() {
-    const { data } = await supabase
-      .from('accommodations')
-      .select('id, name, type, check_in_date, check_out_date, check_in_time, check_out_time, address, lat, lng, google_rating, google_rating_count')
-      .eq('trip_id', trip.id)
-      .order('check_in_date')
-    setStays(data || [])
   }
 
   async function fetchTravelTimes(day) {
@@ -139,14 +147,6 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
       return next
     })
     if (!mapDays.has(day)) setTimeout(() => fetchTravelTimes(day), 500)
-  }
-
-  async function fetchCalendarEvents() {
-    const { data } = await supabase
-      .from('calendar_events')
-      .select('*')
-      .eq('trip_id', trip.id)
-    setCalendarEvents(data || [])
   }
 
   async function saveEvent(payload) {
@@ -199,7 +199,8 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     try {
       const eventPayload = buildCalendarEvent(item, day)
       await pushEvent(trip.id, item.item_type, item.id, eventPayload)
-      await fetchCalendarEvents()
+      // Refetch calendar events after sync
+      queryClient.invalidateQueries({ queryKey: ['calendar-events', trip.id] })
     } catch (e) {
       setSyncError(e.message)
     }
@@ -224,7 +225,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
       .insert({ ...payload, trip_id: trip.id })
       .select()
       .single()
-    if (!error && data) setStays((prev) => [...prev, data].sort((a, b) => new Date(a.check_in_date) - new Date(b.check_in_date)))
+    if (!error && data) setStays((prev) => [...(prev || []), data].sort((a, b) => new Date(a.check_in_date) - new Date(b.check_in_date)))
     setStayModal(null)
   }
 
@@ -241,7 +242,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
   }
 
   if (!trip) return <div className="page"><p>No active trip.</p></div>
-  if (loading) return <div className="page"><p>Loading…</p></div>
+  if (isLoading) return <div className="page"><p>Loading…</p></div>
 
   const days = getDays(trip.start_date, trip.end_date)
 

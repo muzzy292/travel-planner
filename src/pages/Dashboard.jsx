@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { fetchForecast, geocodeCity } from '../lib/weather'
 import { guessCurrency, fetchRate } from '../lib/currency'
@@ -766,44 +767,65 @@ function BudgetRow({ trip, budgetData, stays }) {
 // ── Main Dashboard page ──────────────────────────────────────
 
 export default function Dashboard({ trip }) {
-  const [upcomingItems,  setUpcomingItems]  = useState(null)
-  const [stays,          setStays]          = useState(null)
-  const [flights,        setFlights]        = useState(null)
-  const [budgetData,     setBudgetData]     = useState(null)
-  const [flightCount,    setFlightCount]    = useState(null)
-  const [activityCount,  setActivityCount]  = useState(null)
-  const [phaseOverride,  setPhaseOverride]  = useState(null)
-  const [forecast,       setForecast]       = useState(null)
-  const [forecastCity,   setForecastCity]   = useState(null)
+  const [phaseOverride, setPhaseOverride] = useState(null)
+  const [forecast,      setForecast]      = useState(null)
+  const [forecastCity,  setForecastCity]  = useState(null)
 
-  useEffect(() => {
-    if (!trip) return
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    const fromDate = today < new Date(trip.start_date + 'T00:00:00')
-      ? trip.start_date
-      : today.toISOString().slice(0, 10)
+  // Compute fromDate (earliest of trip start or today) for upcoming queries
+  const _today = new Date(); _today.setHours(0, 0, 0, 0)
+  const fromDate = trip
+    ? (_today < new Date(trip.start_date + 'T00:00:00') ? trip.start_date : _today.toISOString().slice(0, 10))
+    : null
 
-    Promise.all([
-      supabase.from('itinerary_items').select('id,title,day_date,start_time,item_type,status').eq('trip_id', trip.id).neq('item_type', 'flight').gte('day_date', fromDate).order('day_date').order('order_index').limit(8),
-      supabase.from('itinerary_items').select('id,title,day_date,start_time,item_type,status,location,notes,cost').eq('trip_id', trip.id).eq('item_type', 'flight').gte('day_date', fromDate).order('day_date').order('start_time'),
-      supabase.from('accommodations').select('id,name,address,city,check_in_date,check_out_date,price').eq('trip_id', trip.id).order('check_in_date'),
-      supabase.from('expenses').select('amount').eq('trip_id', trip.id),
-      supabase.from('accommodations').select('price').eq('trip_id', trip.id).not('price', 'is', null),
-      supabase.from('itinerary_items').select('cost').eq('trip_id', trip.id).not('cost', 'is', null),
-      supabase.from('itinerary_items').select('*', { count: 'exact', head: true }).eq('trip_id', trip.id).eq('item_type', 'flight'),
-      supabase.from('itinerary_items').select('*', { count: 'exact', head: true }).eq('trip_id', trip.id).eq('item_type', 'activity'),
-    ]).then(([itin, flightsRes, staysRes, expenses, stayPrices, itinCosts, fcRes, acRes]) => {
-      setUpcomingItems(itin.data        || [])
-      setFlights(flightsRes.data        || [])
-      setStays(staysRes.data            || [])
-      setFlightCount(fcRes.count        ?? 0)
-      setActivityCount(acRes.count      ?? 0)
-      const expTotal  = (expenses.data   || []).reduce((s, e) => s + parseFloat(e.amount), 0)
-      const stayTotal = (stayPrices.data || []).reduce((s, e) => s + parseFloat(e.price),  0)
-      const itinTotal = (itinCosts.data  || []).reduce((s, e) => s + parseFloat(e.cost),   0)
-      setBudgetData({ total: expTotal + stayTotal + itinTotal })
-    })
-  }, [trip?.id])
+  const { data: upcomingItems = null } = useQuery({
+    queryKey: ['dashboard-upcoming', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('itinerary_items')
+        .select('id,title,day_date,start_time,item_type,status')
+        .eq('trip_id', trip.id).neq('item_type', 'flight').gte('day_date', fromDate)
+        .order('day_date').order('order_index').limit(8)
+      return data || []
+    },
+    enabled: !!trip?.id && !!fromDate,
+  })
+
+  const { data: flights = null } = useQuery({
+    queryKey: ['dashboard-flights', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('itinerary_items')
+        .select('id,title,day_date,start_time,item_type,status,location,notes,cost')
+        .eq('trip_id', trip.id).eq('item_type', 'flight').gte('day_date', fromDate)
+        .order('day_date').order('start_time')
+      return data || []
+    },
+    enabled: !!trip?.id && !!fromDate,
+  })
+
+  const { data: stays = null } = useQuery({
+    queryKey: ['dashboard-stays', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('accommodations')
+        .select('id,name,address,city,check_in_date,check_out_date,price,lat,lng')
+        .eq('trip_id', trip.id).order('check_in_date')
+      return data || []
+    },
+    enabled: !!trip?.id,
+  })
+
+  // Single RPC call replaces 5 separate budget/count queries
+  const { data: summary = null } = useQuery({
+    queryKey: ['dashboard-summary', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.rpc('get_dashboard_summary', { p_trip_id: trip.id })
+      return data
+    },
+    enabled: !!trip?.id,
+  })
+
+  // Derive from RPC summary
+  const budgetData    = summary ? { total: (summary.expense_total || 0) + (summary.stay_cost_total || 0) + (summary.itin_cost_total || 0) } : null
+  const flightCount   = summary?.flight_count   ?? null
+  const activityCount = summary?.activity_count ?? null
 
   useEffect(() => { setPhaseOverride(null); setForecast(null); setForecastCity(null) }, [trip?.id])
 

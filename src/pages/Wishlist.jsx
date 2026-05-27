@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import WishlistModal from '../components/WishlistModal'
 import PromoteModal from '../components/PromoteModal'
@@ -14,26 +15,27 @@ function renderStars(rating) {
 }
 
 export default function Wishlist({ trip, session }) {
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [filter, setFilter] = useState('All')
   const [modal, setModal] = useState(null)
   const [promoteItem, setPromoteItem] = useState(null)
   const [showDiscover, setShowDiscover] = useState(false)
 
-  useEffect(() => {
-    if (trip) fetchItems()
-  }, [trip?.id])
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['wishlist', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('wishlist_items')
+        .select('*')
+        .eq('trip_id', trip.id)
+        .order('created_at', { ascending: false })
+      return data || []
+    },
+    enabled: !!trip?.id,
+  })
 
-  async function fetchItems() {
-    setLoading(true)
-    const { data } = await supabase
-      .from('wishlist_items')
-      .select('*')
-      .eq('trip_id', trip.id)
-      .order('created_at', { ascending: false })
-    setItems(data || [])
-    setLoading(false)
+  function setItems(updater) {
+    queryClient.setQueryData(['wishlist', trip.id], typeof updater === 'function' ? updater : () => updater)
   }
 
   async function saveItem(payload) {
@@ -91,7 +93,7 @@ export default function Wishlist({ trip, session }) {
   }
 
   if (!trip) return <div className="page"><p>No active trip.</p></div>
-  if (loading) return <div className="page"><p>Loading…</p></div>
+  if (isLoading) return <div className="page"><p>Loading…</p></div>
 
   const categories = ['All', ...CATEGORIES]
   const filtered = filter === 'All' ? items : items.filter((i) => i.category === filter)
@@ -120,7 +122,7 @@ export default function Wishlist({ trip, session }) {
               .insert({ ...payload, trip_id: trip.id, added_by: session?.user?.email })
               .select()
               .single()
-            if (!error) setItems((prev) => [data, ...prev])
+            if (!error && data) setItems((prev) => [data, ...(prev || [])])
           }}
         />
       )}

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import ExpenseModal from '../components/ExpenseModal'
 
@@ -22,28 +23,39 @@ const ITIN_TYPE_CATEGORY = {
 }
 
 export default function Budget({ trip, session }) {
-  const [expenses, setExpenses] = useState([])
-  const [stays, setStays] = useState([])
-  const [itinCosts, setItinCosts] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [modal, setModal] = useState(null)
   const [filterCat, setFilterCat] = useState('All')
 
-  useEffect(() => {
-    if (trip) fetchAll()
-  }, [trip?.id])
+  const { data: expenses = [], isLoading: expLoading } = useQuery({
+    queryKey: ['expenses', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('expenses').select('*').eq('trip_id', trip.id).order('date', { ascending: false })
+      return data || []
+    },
+    enabled: !!trip?.id,
+  })
 
-  async function fetchAll() {
-    setLoading(true)
-    const [expRes, stayRes, itinRes] = await Promise.all([
-      supabase.from('expenses').select('*').eq('trip_id', trip.id).order('date', { ascending: false }),
-      supabase.from('accommodations').select('id, name, check_in_date, price').eq('trip_id', trip.id).not('price', 'is', null),
-      supabase.from('itinerary_items').select('id, title, day_date, item_type, cost').eq('trip_id', trip.id).not('cost', 'is', null),
-    ])
-    setExpenses(expRes.data || [])
-    setStays(stayRes.data || [])
-    setItinCosts(itinRes.data || [])
-    setLoading(false)
+  const { data: stays = [], isLoading: stayLoading } = useQuery({
+    queryKey: ['budget-stays', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('accommodations').select('id, name, check_in_date, price').eq('trip_id', trip.id).not('price', 'is', null)
+      return data || []
+    },
+    enabled: !!trip?.id,
+  })
+
+  const { data: itinCosts = [], isLoading: itinLoading } = useQuery({
+    queryKey: ['budget-itin', trip?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('itinerary_items').select('id, title, day_date, item_type, cost').eq('trip_id', trip.id).not('cost', 'is', null)
+      return data || []
+    },
+    enabled: !!trip?.id,
+  })
+
+  function setExpenses(updater) {
+    queryClient.setQueryData(['expenses', trip.id], typeof updater === 'function' ? updater : () => updater)
   }
 
   async function saveExpense(payload) {
@@ -53,7 +65,7 @@ export default function Budget({ trip, session }) {
         .insert({ ...payload, trip_id: trip.id, paid_by: session?.user?.email })
         .select()
         .single()
-      if (!error) setExpenses((prev) => [data, ...prev])
+      if (!error) setExpenses((prev) => [data, ...(prev || [])])
     } else {
       const { data, error } = await supabase
         .from('expenses')
@@ -61,19 +73,19 @@ export default function Budget({ trip, session }) {
         .eq('id', modal.item.id)
         .select()
         .single()
-      if (!error) setExpenses((prev) => prev.map((e) => (e.id === modal.item.id ? data : e)))
+      if (!error) setExpenses((prev) => (prev || []).map((e) => (e.id === modal.item.id ? data : e)))
     }
     setModal(null)
   }
 
   async function deleteExpense(id) {
     await supabase.from('expenses').delete().eq('id', id)
-    setExpenses((prev) => prev.filter((e) => e.id !== id))
+    setExpenses((prev) => (prev || []).filter((e) => e.id !== id))
     setModal(null)
   }
 
   if (!trip) return <div className="page"><p>No active trip.</p></div>
-  if (loading) return <div className="page"><p>Loading…</p></div>
+  if (expLoading || stayLoading || itinLoading) return <div className="page"><p>Loading…</p></div>
 
   // Build unified rows from all three sources
   const stayRows = stays.map((s) => ({

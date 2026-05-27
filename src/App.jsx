@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useAuth } from './hooks/useAuth'
 import { useTrip } from './hooks/useTrip'
 import { useCalendar } from './hooks/useCalendar'
@@ -12,6 +13,10 @@ import Settings from './pages/Settings'
 import Accommodation from './pages/Accommodation'
 import './styles/global.css'
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 1000 * 60 * 5 } },
+})
+
 export default function App() {
   const { session, loading, denied, authError, signIn, signOut } = useAuth()
   const { trips, activeTrip, setActiveTrip, createTrip, updateTrip } = useTrip()
@@ -21,6 +26,7 @@ export default function App() {
   if (!session) return <Login signIn={signIn} denied={denied} authError={authError} />
 
   return (
+    <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <Nav
         trips={trips}
@@ -40,5 +46,6 @@ export default function App() {
         </Routes>
       </main>
     </BrowserRouter>
+    </QueryClientProvider>
   )
 }

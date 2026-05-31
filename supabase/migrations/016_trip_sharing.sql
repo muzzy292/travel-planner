@@ -49,11 +49,9 @@ CREATE POLICY "Owner can manage own trips" ON trips
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Members can view shared trips" ON trips;
-DROP POLICY IF EXISTS "Members can view shared trips" ON trips;
+-- Use SECURITY DEFINER function to avoid circular RLS: trips policy → trip_members → trips
 CREATE POLICY "Members can view shared trips" ON trips
-  FOR SELECT USING (
-    id IN (SELECT trip_id FROM trip_members WHERE user_id = auth.uid())
-  );
+  FOR SELECT USING (is_trip_accessible(id));
 
 -- 4. Update child table RLS to use is_trip_accessible
 DROP POLICY IF EXISTS "Owner can manage own itinerary items" ON itinerary_items;

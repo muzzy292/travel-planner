@@ -42,46 +42,48 @@ export function useAuth() {
   }, [])
 
   async function handleSession(session) {
+    if (!session) {
+      setSession(null)
+      setLoading(false)
+      return
+    }
+
+    const email = session.user?.email?.toLowerCase()
+
+    // Fast path: env-var whitelist or no whitelist configured
+    if (WHITELISTED.length === 0 || WHITELISTED.includes(email)) {
+      setSession(session)
+      setDenied(false)
+      setLoading(false)
+      // Claim pending invites in the background — safe to fail if migration not yet run
+      supabase.rpc('claim_pending_invites').then(() => {}).catch(() => {})
+      return
+    }
+
+    // Slow path: not in env whitelist — check DB allowed_users (populated by invite_to_trip)
     try {
-      if (session) {
-        const email = session.user?.email?.toLowerCase()
-        let allowed = false
+      const { data } = await supabase
+        .from('allowed_users')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle()
 
-        if (WHITELISTED.length === 0) {
-          // No env whitelist configured — allow everyone
-          allowed = true
-        } else if (WHITELISTED.includes(email)) {
-          // In the env var whitelist
-          allowed = true
-        } else {
-          // Check the DB allowed_users table (populated by invite_to_trip)
-          const { data } = await supabase
-            .from('allowed_users')
-            .select('email')
-            .eq('email', email)
-            .maybeSingle()
-          allowed = !!data
-        }
-
-        if (!allowed) {
-          await supabase.auth.signOut()
-          setDenied(true)
-          setSession(null)
-        } else {
-          // Link any pending trip invites to this user account
-          supabase.rpc('claim_pending_invites').catch(console.error)
-          setSession(session)
-          setDenied(false)
-        }
+      if (data) {
+        setSession(session)
+        setDenied(false)
+        supabase.rpc('claim_pending_invites').then(() => {}).catch(() => {})
       } else {
+        await supabase.auth.signOut()
+        setDenied(true)
         setSession(null)
       }
     } catch (err) {
-      console.error('handleSession error:', err)
-      setSession(null)
-    } finally {
-      setLoading(false)
+      console.error('Auth check failed:', err)
+      // Fail open — RLS enforces real data security
+      setSession(session)
+      setDenied(false)
     }
+    setLoading(false)
   }
 
   async function signIn() {

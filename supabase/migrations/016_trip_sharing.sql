@@ -49,6 +49,7 @@ CREATE POLICY "Owner can manage own trips" ON trips
   WITH CHECK (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Members can view shared trips" ON trips;
+DROP POLICY IF EXISTS "Members can view shared trips" ON trips;
 CREATE POLICY "Members can view shared trips" ON trips
   FOR SELECT USING (
     id IN (SELECT trip_id FROM trip_members WHERE user_id = auth.uid())
@@ -56,26 +57,31 @@ CREATE POLICY "Members can view shared trips" ON trips
 
 -- 4. Update child table RLS to use is_trip_accessible
 DROP POLICY IF EXISTS "Owner can manage own itinerary items" ON itinerary_items;
+DROP POLICY IF EXISTS "Owner or member can access itinerary items" ON itinerary_items;
 CREATE POLICY "Owner or member can access itinerary items" ON itinerary_items
   FOR ALL USING (is_trip_accessible(trip_id))
   WITH CHECK (is_trip_accessible(trip_id));
 
 DROP POLICY IF EXISTS "Owner can manage own accommodations" ON accommodations;
+DROP POLICY IF EXISTS "Owner or member can access accommodations" ON accommodations;
 CREATE POLICY "Owner or member can access accommodations" ON accommodations
   FOR ALL USING (is_trip_accessible(trip_id))
   WITH CHECK (is_trip_accessible(trip_id));
 
 DROP POLICY IF EXISTS "Owner can manage own expenses" ON expenses;
+DROP POLICY IF EXISTS "Owner or member can access expenses" ON expenses;
 CREATE POLICY "Owner or member can access expenses" ON expenses
   FOR ALL USING (is_trip_accessible(trip_id))
   WITH CHECK (is_trip_accessible(trip_id));
 
 DROP POLICY IF EXISTS "Owner can manage own wishlist items" ON wishlist_items;
+DROP POLICY IF EXISTS "Owner or member can access wishlist items" ON wishlist_items;
 CREATE POLICY "Owner or member can access wishlist items" ON wishlist_items
   FOR ALL USING (is_trip_accessible(trip_id))
   WITH CHECK (is_trip_accessible(trip_id));
 
 DROP POLICY IF EXISTS "Owner can manage own calendar events" ON calendar_events;
+DROP POLICY IF EXISTS "Owner or member can access calendar events" ON calendar_events;
 CREATE POLICY "Owner or member can access calendar events" ON calendar_events
   FOR ALL USING (is_trip_accessible(trip_id))
   WITH CHECK (is_trip_accessible(trip_id));

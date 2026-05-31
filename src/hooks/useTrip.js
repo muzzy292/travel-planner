@@ -17,10 +17,7 @@ export function useTrip(session) {
       .from('trips')
       .select('*')
       .order('start_date', { ascending: true })
-    if (error) {
-      console.error('fetchTrips error:', error)
-    } else {
-      console.log('fetchTrips result:', data)
+    if (!error) {
       setTrips(data)
       if (data.length > 0) setActiveTrip(data[0])
     }

@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-export function useTrip() {
+export function useTrip(session) {
   const [trips, setTrips] = useState([])
   const [activeTrip, setActiveTrip] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!session) return
     fetchTrips()
-  }, [])
+  }, [session?.user?.id])
 
   async function fetchTrips() {
     setLoading(true)

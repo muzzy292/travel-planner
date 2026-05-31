@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 
 const TIMEZONES = [
   'Australia/Sydney', 'Australia/Melbourne', 'Australia/Brisbane', 'Australia/Perth',
@@ -16,12 +17,62 @@ const TIMEZONES = [
 
 const EMPTY_FORM = { name: '', destination: '', start_date: '', end_date: '', budget: '', timezone: 'Australia/Sydney' }
 
-export default function Settings({ trip, createTrip, updateTrip, calendarConnected, connectCalendar }) {
+export default function Settings({ trip, session, createTrip, updateTrip, calendarConnected, connectCalendar }) {
   const [mode, setMode] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+
+  // Trip sharing state
+  const [members, setMembers] = useState([])
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteError, setInviteError] = useState(null)
+  const [inviteSuccess, setInviteSuccess] = useState(null)
+  const isOwner = trip && session && trip.user_id === session.user.id
+
+  useEffect(() => {
+    if (!trip || !isOwner) return
+    supabase
+      .from('trip_members')
+      .select('id, invited_email, role, user_id, created_at')
+      .eq('trip_id', trip.id)
+      .order('created_at')
+      .then(({ data }) => setMembers(data || []))
+  }, [trip?.id, isOwner])
+
+  async function handleInvite(e) {
+    e.preventDefault()
+    const email = inviteEmail.trim().toLowerCase()
+    if (!email) return
+    setInviteLoading(true)
+    setInviteError(null)
+    setInviteSuccess(null)
+    const { error } = await supabase.rpc('invite_to_trip', { p_trip_id: trip.id, p_email: email })
+    if (error) {
+      setInviteError(error.message)
+    } else {
+      setInviteSuccess(`Invite sent to ${email}`)
+      setInviteEmail('')
+      // Refresh member list
+      const { data } = await supabase
+        .from('trip_members')
+        .select('id, invited_email, role, user_id, created_at')
+        .eq('trip_id', trip.id)
+        .order('created_at')
+      setMembers(data || [])
+    }
+    setInviteLoading(false)
+  }
+
+  async function handleRemoveMember(email) {
+    if (!window.confirm(`Remove ${email} from this trip?`)) return
+    const { error } = await supabase.rpc('remove_trip_member', { p_trip_id: trip.id, p_email: email })
+    if (!error) {
+      setMembers((prev) => prev.filter((m) => m.invited_email !== email))
+    }
+  }
 
   function openCreate() {
     setForm(EMPTY_FORM)
@@ -158,6 +209,50 @@ export default function Settings({ trip, createTrip, updateTrip, calendarConnect
           </form>
         )}
       </section>
+
+      {isOwner && (
+        <section className="settings-section">
+          <h3>Trip Access</h3>
+          <p className="muted small">Invite people to view and edit this trip. They'll receive access when they sign in with the invited email.</p>
+
+          <form className="invite-form" onSubmit={handleInvite}>
+            <input
+              type="email"
+              placeholder="Email address"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              required
+              className="invite-input"
+            />
+            <button className="btn" type="submit" disabled={inviteLoading}>
+              {inviteLoading ? 'Inviting…' : 'Invite'}
+            </button>
+          </form>
+
+          {inviteError && <p className="error">{inviteError}</p>}
+          {inviteSuccess && <p className="success-msg">{inviteSuccess}</p>}
+
+          {members.length > 0 && (
+            <ul className="member-list">
+              {members.map((m) => (
+                <li key={m.id} className="member-row">
+                  <span className="member-email">{m.invited_email}</span>
+                  <span className={`member-status ${m.user_id ? 'active' : 'pending'}`}>
+                    {m.user_id ? 'Active' : 'Pending'}
+                  </span>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => handleRemoveMember(m.invited_email)}
+                    title="Remove access"
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <section className="settings-section">
         <h3>Google Calendar</h3>

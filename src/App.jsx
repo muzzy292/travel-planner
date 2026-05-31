@@ -19,7 +19,7 @@ const queryClient = new QueryClient({
 
 export default function App() {
   const { session, loading, denied, authError, signIn, signOut } = useAuth()
-  const { trips, activeTrip, setActiveTrip, createTrip, updateTrip } = useTrip()
+  const { trips, activeTrip, setActiveTrip, createTrip, updateTrip } = useTrip(session)
   const { connected: calendarConnected, connect: connectCalendar, pushEvent, deleteEvent: deleteCalendarEvent } = useCalendar()
 
   if (loading) return <div className="loading">Loading…</div>
@@ -41,7 +41,7 @@ export default function App() {
           <Route path="/accommodation" element={<Accommodation trip={activeTrip} />} />
           <Route path="/wishlist" element={<Wishlist trip={activeTrip} session={session} />} />
           <Route path="/budget" element={<Budget trip={activeTrip} session={session} />} />
-          <Route path="/settings" element={<Settings trip={activeTrip} createTrip={createTrip} updateTrip={updateTrip} calendarConnected={calendarConnected} connectCalendar={connectCalendar} />} />
+          <Route path="/settings" element={<Settings trip={activeTrip} session={session} createTrip={createTrip} updateTrip={updateTrip} calendarConnected={calendarConnected} connectCalendar={connectCalendar} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

@@ -42,40 +42,46 @@ export function useAuth() {
   }, [])
 
   async function handleSession(session) {
-    if (session) {
-      const email = session.user?.email?.toLowerCase()
-      let allowed = false
+    try {
+      if (session) {
+        const email = session.user?.email?.toLowerCase()
+        let allowed = false
 
-      if (WHITELISTED.length === 0) {
-        // No env whitelist configured — allow everyone
-        allowed = true
-      } else if (WHITELISTED.includes(email)) {
-        // In the env var whitelist
-        allowed = true
+        if (WHITELISTED.length === 0) {
+          // No env whitelist configured — allow everyone
+          allowed = true
+        } else if (WHITELISTED.includes(email)) {
+          // In the env var whitelist
+          allowed = true
+        } else {
+          // Check the DB allowed_users table (populated by invite_to_trip)
+          const { data } = await supabase
+            .from('allowed_users')
+            .select('email')
+            .eq('email', email)
+            .maybeSingle()
+          allowed = !!data
+        }
+
+        if (!allowed) {
+          await supabase.auth.signOut()
+          setDenied(true)
+          setSession(null)
+        } else {
+          // Link any pending trip invites to this user account
+          supabase.rpc('claim_pending_invites').catch(console.error)
+          setSession(session)
+          setDenied(false)
+        }
       } else {
-        // Check the DB allowed_users table (populated by invite_to_trip)
-        const { data } = await supabase
-          .from('allowed_users')
-          .select('email')
-          .eq('email', email)
-          .maybeSingle()
-        allowed = !!data
-      }
-
-      if (!allowed) {
-        await supabase.auth.signOut()
-        setDenied(true)
         setSession(null)
-      } else {
-        // Link any pending trip invites to this user account
-        supabase.rpc('claim_pending_invites').catch(console.error)
-        setSession(session)
-        setDenied(false)
       }
-    } else {
+    } catch (err) {
+      console.error('handleSession error:', err)
       setSession(null)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   async function signIn() {

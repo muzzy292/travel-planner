@@ -644,6 +644,18 @@ body {
   margin-bottom: 1.5rem;
 }
 .discover-panel h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; letter-spacing: -0.01em; }
+.discover-location-label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.82rem; font-weight: 600; color: var(--muted); margin-bottom: 0.75rem; }
+.discover-location-input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 4px);
+  font-size: 0.9rem;
+  font-family: inherit;
+  font-weight: 400;
+  background: var(--surface);
+  color: var(--text);
+}
+.discover-location-input:focus { outline: none; border-color: var(--brand); }
 .discover-quick { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
 .discover-search { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
 .discover-search input {

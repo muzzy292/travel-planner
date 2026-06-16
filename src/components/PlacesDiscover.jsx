@@ -14,6 +14,7 @@ const QUICK_THEMES = [
 const PRICE_LABEL = { Free: 'Free', $: '$', $$: '$$', $$$: '$$$', $$$$: '$$$$' }
 
 export default function PlacesDiscover({ destination, startDate, endDate, existing = [], onAddToWishlist }) {
+  const [location, setLocation] = useState(destination || '')
   const [query, setQuery] = useState('')
   const [activeTheme, setActiveTheme] = useState(null)
   const [status, setStatus] = useState(null) // 'thinking' | 'verifying' | null
@@ -23,7 +24,10 @@ export default function PlacesDiscover({ destination, startDate, endDate, existi
   const [added, setAdded] = useState({}) // search_query -> true
 
   async function runDiscover(q) {
-    if (!destination) return
+    if (!location.trim()) {
+      setError('Enter a place to search — e.g. a city or area.')
+      return
+    }
     setStatus('thinking')
     setError(null)
     setResults([])
@@ -37,7 +41,7 @@ export default function PlacesDiscover({ destination, startDate, endDate, existi
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          destination,
+          destination: location.trim(),
           query: q,
           startDate,
           endDate,
@@ -79,7 +83,7 @@ export default function PlacesDiscover({ destination, startDate, endDate, existi
         suggestions.map(async (s) => {
           try {
             const { places } = await Place.searchByText({
-              textQuery: s.search_query || `${s.name}, ${destination}`,
+              textQuery: s.search_query || `${s.name}, ${location.trim()}`,
               fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'id'],
               maxResultCount: 1,
             })
@@ -151,10 +155,21 @@ export default function PlacesDiscover({ destination, startDate, endDate, existi
 
   return (
     <div className="discover-panel">
-      <h3>Discover — {destination}</h3>
+      <h3>Discover</h3>
       <p className="muted small" style={{ marginTop: '-0.4rem', marginBottom: '0.75rem' }}>
         Curated for the family by Claude, then confirmed on Google Maps.
       </p>
+
+      <label className="discover-location-label">
+        Where to search
+        <input
+          className="discover-location-input"
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="e.g. Hoi An, or Hanoi Old Quarter"
+          disabled={busy}
+        />
+      </label>
 
       <div className="discover-quick">
         {QUICK_THEMES.map((t) => (

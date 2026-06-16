@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { supabase } from '../lib/supabase'
 import { loadMaps } from '../lib/maps'
@@ -29,6 +29,16 @@ function buildCalendarEvent(item, day) {
     return { ...base, start: { dateTime: start, timeZone: 'Australia/Sydney' }, end: { dateTime: start, timeZone: 'Australia/Sydney' }, location: item.location || '' }
   }
   return { ...base, start: { date: day }, end: { date: day }, location: item.location || '' }
+}
+
+// Drop zone wrapping each day's event list — lets items be dropped onto a different date
+function DroppableDay({ day, children }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `day-${day}` })
+  return (
+    <div ref={setNodeRef} className={`day-events ${isOver ? 'day-events-over' : ''}`}>
+      {children}
+    </div>
+  )
 }
 
 export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCalendarEvent }) {
@@ -179,19 +189,81 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
     setModal(null)
   }
 
-  async function handleDragEnd(event, day) {
+  async function handleDragEnd(event) {
     const { active, over } = event
-    if (!over || active.id === over.id) return
-    const dayItems = items.filter((i) => i.day_date === day)
-    const oldIndex = dayItems.findIndex((i) => i.id === active.id)
-    const newIndex = dayItems.findIndex((i) => i.id === over.id)
-    const reordered = arrayMove(dayItems, oldIndex, newIndex).map((item, idx) => ({ ...item, order_index: idx }))
-    setItems((prev) => [...prev.filter((i) => i.day_date !== day), ...reordered])
-    await Promise.all(
-      reordered.map((item) =>
-        supabase.from('itinerary_items').update({ order_index: item.order_index }).eq('id', item.id)
+    if (!over) return
+
+    const activeItem = items.find((i) => i.id === active.id)
+    if (!activeItem) return
+
+    // Resolve the target day: dropping over a day's empty zone (id "day-<date>")
+    // or over another item (use that item's day).
+    let targetDay
+    let overItem = null
+    if (typeof over.id === 'string' && over.id.startsWith('day-')) {
+      targetDay = over.id.slice(4)
+    } else {
+      overItem = items.find((i) => i.id === over.id)
+      targetDay = overItem?.day_date
+    }
+    if (!targetDay) return
+
+    const sourceDay = activeItem.day_date
+    const isRegular = (i) => i.item_type !== 'flight'
+
+    // Same day: reorder
+    if (sourceDay === targetDay) {
+      if (active.id === over.id) return
+      const dayItems = items.filter((i) => i.day_date === sourceDay && isRegular(i))
+      const oldIndex = dayItems.findIndex((i) => i.id === active.id)
+      const newIndex = dayItems.findIndex((i) => i.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+      const reordered = arrayMove(dayItems, oldIndex, newIndex).map((item, idx) => ({ ...item, order_index: idx }))
+      setItems((prev) => [
+        ...prev.filter((i) => !(i.day_date === sourceDay && isRegular(i))),
+        ...reordered,
+      ])
+      await Promise.all(
+        reordered.map((item) =>
+          supabase.from('itinerary_items').update({ order_index: item.order_index }).eq('id', item.id)
+        )
       )
-    )
+      return
+    }
+
+    // Cross-day move: change the item's day_date and reindex both days
+    const targetItems = items.filter((i) => i.day_date === targetDay && isRegular(i) && i.id !== active.id)
+    let insertIndex = targetItems.length
+    if (overItem) {
+      const idx = targetItems.findIndex((i) => i.id === overItem.id)
+      if (idx !== -1) insertIndex = idx
+    }
+    const newTarget = [...targetItems]
+    newTarget.splice(insertIndex, 0, { ...activeItem, day_date: targetDay })
+    const reTarget = newTarget.map((item, idx) => ({ ...item, order_index: idx }))
+    const reSource = items
+      .filter((i) => i.day_date === sourceDay && isRegular(i) && i.id !== active.id)
+      .map((item, idx) => ({ ...item, order_index: idx }))
+
+    setItems((prev) => [
+      ...prev.filter((i) => i.id !== active.id && !(isRegular(i) && (i.day_date === sourceDay || i.day_date === targetDay))),
+      ...reSource,
+      ...reTarget,
+    ])
+
+    const movedOrder = reTarget.find((i) => i.id === active.id).order_index
+    await supabase
+      .from('itinerary_items')
+      .update({ day_date: targetDay, order_index: movedOrder })
+      .eq('id', active.id)
+    await Promise.all([
+      ...reTarget.filter((i) => i.id !== active.id).map((item) =>
+        supabase.from('itinerary_items').update({ order_index: item.order_index }).eq('id', item.id)
+      ),
+      ...reSource.map((item) =>
+        supabase.from('itinerary_items').update({ order_index: item.order_index }).eq('id', item.id)
+      ),
+    ])
   }
 
   async function handleCalendarSync(item, day) {
@@ -262,6 +334,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
         <h2>Itinerary — {trip.name}</h2>
       </div>
       {syncError && <p className="error" style={{ marginBottom: '1rem' }}>{syncError}</p>}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <div className="itinerary-days">
         {days.map((day, i) => {
           const allDayItems = items.filter((item) => item.day_date === day).sort((a, b) => a.order_index - b.order_index)
@@ -332,33 +405,32 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
                 </a>
               ))}
 
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEnd(e, day)}>
-                <SortableContext items={regularItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                  <div className="day-events">
-                    {regularItems.length === 0 && flightItems.length === 0 && staysForDay(day).length === 0 && (
-                      <p className="empty-day">No events yet</p>
-                    )}
-                    {regularItems.map((item) => {
-                      const calEvent = calendarEvents.find((e) => e.item_id === item.id)
-                      return (
-                        <SortableItem
-                          key={item.id}
-                          item={{ ...item, calendar_event_id: calEvent?.id, travelTime: travelTimes[item.id] }}
-                          onEdit={() => setModal({ mode: 'edit', day, item })}
-                          onCalendarSync={() => handleCalendarSync(item, day)}
-                          onCalendarDelete={() => handleCalendarDelete(item)}
-                          onAddToStays={() => handleAddToStays(item)}
-                          calendarConnected={calendarConnected}
-                        />
-                      )
-                    })}
-                  </div>
-                </SortableContext>
-              </DndContext>
+              <SortableContext items={regularItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                <DroppableDay day={day}>
+                  {regularItems.length === 0 && flightItems.length === 0 && staysForDay(day).length === 0 && (
+                    <p className="empty-day">No events yet</p>
+                  )}
+                  {regularItems.map((item) => {
+                    const calEvent = calendarEvents.find((e) => e.item_id === item.id)
+                    return (
+                      <SortableItem
+                        key={item.id}
+                        item={{ ...item, calendar_event_id: calEvent?.id, travelTime: travelTimes[item.id] }}
+                        onEdit={() => setModal({ mode: 'edit', day, item })}
+                        onCalendarSync={() => handleCalendarSync(item, day)}
+                        onCalendarDelete={() => handleCalendarDelete(item)}
+                        onAddToStays={() => handleAddToStays(item)}
+                        calendarConnected={calendarConnected}
+                      />
+                    )
+                  })}
+                </DroppableDay>
+              </SortableContext>
             </div>
           )
         })}
       </div>
+      </DndContext>
       {modal && (
         <EventModal
           mode={modal.mode}

@@ -44,7 +44,15 @@ export default function PlacesDiscover({ destination, startDate, endDate, existi
           existing: existing.slice(0, 60),
         }),
       })
-      const data = await res.json()
+      // Read as text first so a non-JSON platform error (e.g. a timeout page)
+      // surfaces a readable message instead of crashing on JSON.parse.
+      const text = await res.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        throw new Error(res.ok ? 'Unexpected response from server' : `Server error (${res.status}). Please try again.`)
+      }
       if (!res.ok) throw new Error(data.error || 'Discover failed')
       suggestions = Array.isArray(data.suggestions) ? data.suggestions : []
     } catch (e) {

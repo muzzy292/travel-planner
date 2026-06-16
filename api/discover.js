@@ -23,14 +23,14 @@ Return ONLY a JSON array — no markdown, no prose, no code fences. Each element
   "name": "exact place name as it appears on Google Maps",
   "category": one of "Activities" | "Restaurants" | "Sights" | "Shopping" | "Accommodation" | "Transport" | "Other",
   "area": "neighbourhood or area, short",
-  "why": "one or two sentences — opinionated, specific, family-aware",
+  "why": "one short sentence — opinionated, specific, family-aware",
   "price": one of "Free" | "$" | "$$" | "$$$" | "$$$$",
   "book_ahead": true or false,
   "kid_friendly": true or false,
-  "search_query": "<name>, <city/area>"  // used to look the place up on Google Maps
+  "search_query": "<name>, <city/area>"
 }
 
-Return between 6 and 10 items. Output the JSON array and nothing else.`
+Return 6 to 8 items. Keep "why" to a single sentence. Output the JSON array as a single minified line with no extra whitespace or line breaks, and nothing else.`
 
 export default async function handler(req) {
   if (req.method !== 'POST') {
@@ -73,10 +73,12 @@ export default async function handler(req) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
-        // Cache the static persona so repeat searches only pay for the short user turn
-        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+        // Haiku keeps the call well under Vercel's edge timeout (Sonnet ran ~28s
+        // and got truncated at max_tokens). Fast + cheap, quality is fine for this
+        // constrained, persona-guided shortlist task.
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2048,
+        system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userPrompt }],
       }),
     })

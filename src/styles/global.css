@@ -302,7 +302,21 @@ body {
 }
 .event-item.confirmed { border-left: 3px solid var(--success); }
 .event-item.tentative { border-left: 3px solid var(--muted); }
-.drag-handle { color: var(--muted); cursor: grab; font-size: 1rem; padding-top: 2px; user-select: none; }
+.drag-handle {
+  color: var(--muted);
+  cursor: grab;
+  font-size: 1.1rem;
+  user-select: none;
+  touch-action: none; /* let dnd-kit capture touch-drag instead of the browser scrolling */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 44px;
+  margin: -4px 0;
+  flex-shrink: 0;
+}
+.drag-handle:active { cursor: grabbing; }
 .event-body { flex: 1; cursor: pointer; }
 .event-title { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .event-time { font-size: 0.8rem; color: var(--muted); font-weight: 500; }

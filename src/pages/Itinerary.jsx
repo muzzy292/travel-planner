@@ -49,7 +49,9 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
   const [mapDays, setMapDays] = useState(new Set())
   const [travelTimes, setTravelTimes] = useState({})
 
-  const sensors = useSensors(useSensor(PointerSensor))
+  // Small activation distance so a tap on the handle isn't treated as an instant drag —
+  // works for both mouse and touch (PointerSensor covers touch via pointer events).
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['itinerary', trip?.id],

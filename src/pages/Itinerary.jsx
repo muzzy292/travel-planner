@@ -4,22 +4,13 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, useDro
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { supabase } from '../lib/supabase'
 import { loadMaps } from '../lib/maps'
+import { toDateStr } from '../lib/dates'
 import SortableItem from '../components/SortableItem'
 import EventModal from '../components/EventModal'
 import AccommodationModal from '../components/AccommodationModal'
 import MapView from '../components/MapView'
 
 const STAY_TYPES = ['Hotel', 'Airbnb', 'Hostel', 'Resort', 'Apartment', 'Guesthouse', 'Other']
-
-// Format a Date as YYYY-MM-DD using its LOCAL components. Using toISOString()
-// here shifts the date back a day in positive-UTC timezones (e.g. Australia),
-// because local midnight converts to the previous afternoon in UTC.
-function toDateStr(date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
 
 function getDays(start, end) {
   const days = []

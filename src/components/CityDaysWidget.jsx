@@ -1,3 +1,5 @@
+import { todayStr } from '../lib/dates'
+
 function nightsBetween(a, b) {
   if (!a || !b) return 0
   return Math.max(0, Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000))
@@ -19,7 +21,7 @@ function extractCity(stay) {
 export default function CityDaysWidget({ stays }) {
   if (!stays?.filter(s => s.check_in_date && s.check_out_date).length) return null
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayStr()
 
   // Group nights by derived city name
   const map = {}

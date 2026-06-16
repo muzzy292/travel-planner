@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase'
 import { fetchForecast, geocodeCity } from '../lib/weather'
 import { guessCurrency, fetchRate } from '../lib/currency'
 import { fetchCountryInfo } from '../lib/countries'
+import { toDateStr } from '../lib/dates'
 import '../styles/briefing.css'
 
 // ── Pure helpers ─────────────────────────────────────────────
@@ -80,7 +81,7 @@ function buildNarrative(phaseKey, trip, stays, flights, budgetData, flightCount)
   }
 
   if (phaseKey === 'weekOf') {
-    const todayStr = today.toISOString().slice(0, 10)
+    const todayStr = toDateStr(today)
     const segs = [{ t: `${daysToGo} day${daysToGo !== 1 ? 's' : ''} to go. ` }]
     const nextFlight = flights?.filter(f => f.day_date >= todayStr)?.[0]
     if (nextFlight) {
@@ -103,7 +104,7 @@ function buildNarrative(phaseKey, trip, stays, flights, budgetData, flightCount)
     const end    = new Date(trip.end_date   + 'T00:00:00')
     const dayNum = Math.round((today - start) / 86400000) + 1
     const daysLeft = Math.round((end - today) / 86400000)
-    const todayStr = today.toISOString().slice(0, 10)
+    const todayStr = toDateStr(today)
     const currentStay = stays?.find(s => s.check_in_date <= todayStr && s.check_out_date >= todayStr)
     const segs = [{ t: `Day ${dayNum} of ${totalDays}` }]
     if (currentStay) {
@@ -154,7 +155,7 @@ function buildHeroStats(phaseKey, trip, stays, flights, budgetData, flightCount,
   }
 
   if (phaseKey === 'weekOf') {
-    const todayStr = today.toISOString().slice(0, 10)
+    const todayStr = toDateStr(today)
     const next = flights?.filter(f => f.day_date >= todayStr)?.[0]
     const d = next ? Math.round((new Date(next.day_date + 'T00:00:00') - today) / 86400000) : null
     return [
@@ -190,7 +191,7 @@ function buildTickers(phaseKey, trip, stays, flights, budgetData, flightCount, f
   const totalDays = getTotalDays(trip)
   const budget    = parseFloat(trip.budget || 0)
   const spent     = budgetData?.total ?? 0
-  const todayStr  = today.toISOString().slice(0, 10)
+  const todayStr  = toDateStr(today)
 
   const tickers = []
 
@@ -722,7 +723,7 @@ function CurrencyCard({ defaultCurrency }) {
 
 function DetailRow({ flights, trip, forecast, forecastCity, destCurrency }) {
   const today    = new Date(); today.setHours(0, 0, 0, 0)
-  const todayStr = today.toISOString().slice(0, 10)
+  const todayStr = toDateStr(today)
   const upcoming = (flights || []).filter(f => f.day_date >= todayStr)
 
   return (
@@ -856,7 +857,7 @@ export default function Dashboard({ trip }) {
   // Compute fromDate (earliest of trip start or today) for upcoming queries
   const _today = new Date(); _today.setHours(0, 0, 0, 0)
   const fromDate = trip
-    ? (_today < new Date(trip.start_date + 'T00:00:00') ? trip.start_date : _today.toISOString().slice(0, 10))
+    ? (_today < new Date(trip.start_date + 'T00:00:00') ? trip.start_date : toDateStr(_today))
     : null
 
   const { data: upcomingItems = null } = useQuery({
@@ -917,7 +918,7 @@ export default function Dashboard({ trip }) {
     async function loadWeather() {
       try {
         const today = new Date(); today.setHours(0, 0, 0, 0)
-        const todayStr = today.toISOString().slice(0, 10)
+        const todayStr = toDateStr(today)
         let coords = null, cityLabel = null
 
         // Prefer coordinates from the current or first upcoming stay

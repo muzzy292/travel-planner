@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { todayStr } from '../lib/dates'
 
-const today = new Date().toISOString().slice(0, 10)
+const today = todayStr()
 const EMPTY = { amount: '', category: 'Food & Drink', date: today, notes: '' }
 
 export default function ExpenseModal({ mode, item, categories, onSave, onDelete, onClose }) {

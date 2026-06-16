@@ -1,11 +1,18 @@
 import { useState } from 'react'
 
+function toDateStr(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function getDays(start, end) {
   const days = []
   const cur = new Date(start + 'T00:00:00')
   const last = new Date(end + 'T00:00:00')
   while (cur <= last) {
-    days.push(cur.toISOString().slice(0, 10))
+    days.push(toDateStr(cur))
     cur.setDate(cur.getDate() + 1)
   }
   return days

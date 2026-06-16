@@ -162,19 +162,25 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
   }
 
   async function saveEvent(payload) {
+    const targetDay = payload.day_date || modal.day
     if (modal.mode === 'add') {
-      const dayItems = items.filter((i) => i.day_date === modal.day)
+      const dayItems = items.filter((i) => i.day_date === targetDay)
       const { data, error } = await supabase
         .from('itinerary_items')
-        .insert({ ...payload, trip_id: trip.id, day_date: modal.day, order_index: dayItems.length })
+        .insert({ ...payload, trip_id: trip.id, day_date: targetDay, order_index: dayItems.length })
         .select()
         .single()
       if (error) return error.message
       setItems((prev) => [...prev, data])
     } else {
+      // If the date changed, append to the end of the new day
+      const dateChanged = targetDay !== modal.item.day_date
+      const update = dateChanged
+        ? { ...payload, order_index: items.filter((i) => i.day_date === targetDay && i.id !== modal.item.id).length }
+        : payload
       const { data, error } = await supabase
         .from('itinerary_items')
-        .update(payload)
+        .update(update)
         .eq('id', modal.item.id)
         .select()
         .single()
@@ -437,6 +443,7 @@ export default function Itinerary({ trip, calendarConnected, pushEvent, deleteCa
         <EventModal
           mode={modal.mode}
           day={modal.day}
+          days={days}
           item={modal.item}
           onSave={saveEvent}
           onDelete={deleteEvent}

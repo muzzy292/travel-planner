@@ -12,8 +12,9 @@ const ITEM_TYPES = [
   { value: 'other',        label: '📌 Other' },
 ]
 
-export default function EventModal({ mode, day, item, onSave, onDelete, onClose }) {
+export default function EventModal({ mode, day, days = [], item, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(mode === 'edit' ? {
+    day_date: item.day_date || day,
     title: item.title,
     start_time: item.start_time ? item.start_time.slice(0, 5) : '',
     location: item.location || '',
@@ -25,7 +26,7 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
     lng: item.lng || null,
     google_rating: item.google_rating || null,
     google_rating_count: item.google_rating_count || null,
-  } : EMPTY)
+  } : { ...EMPTY, day_date: day })
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -35,7 +36,12 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
   const debounceRef = useRef(null)
   const mapsReadyRef = useRef(false)
 
-  const label = new Date(day + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+  const label = new Date((form.day_date || day) + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })
+
+  function dayOptionLabel(d, i) {
+    const dl = new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })
+    return `Day ${i + 1} — ${dl}`
+  }
 
   useEffect(() => {
     const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
@@ -99,6 +105,7 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
     setSaving(true)
     setSaveError(null)
     const error = await onSave({
+      day_date: form.day_date,
       title: form.title,
       start_time: form.start_time || null,
       location: form.location || null,
@@ -137,6 +144,16 @@ export default function EventModal({ mode, day, item, onSave, onDelete, onClose 
             </label>
           </div>
           <div className="form-row">
+            {days.length > 0 && (
+              <label>
+                Date
+                <select name="day_date" value={form.day_date} onChange={onChange}>
+                  {days.map((d, i) => (
+                    <option key={d} value={d}>{dayOptionLabel(d, i)}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label>
               Time (optional)
               <input type="time" name="start_time" value={form.start_time} onChange={onChange} />

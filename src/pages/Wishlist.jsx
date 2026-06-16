@@ -116,6 +116,9 @@ export default function Wishlist({ trip, session }) {
       {showDiscover && (
         <PlacesDiscover
           destination={trip.destination}
+          startDate={trip.start_date}
+          endDate={trip.end_date}
+          existing={items.map((i) => i.title)}
           onAddToWishlist={async (payload) => {
             const { data, error } = await supabase
               .from('wishlist_items')

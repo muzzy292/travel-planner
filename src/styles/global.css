@@ -660,7 +660,7 @@ body {
 .discover-results { display: flex; flex-direction: column; gap: 0.5rem; max-height: 400px; overflow-y: auto; }
 .discover-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem;
@@ -669,10 +669,23 @@ body {
   border-radius: calc(var(--radius) - 4px);
 }
 .discover-card-info { flex: 1; min-width: 0; }
-.discover-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.discover-name { font-weight: 600; font-size: 0.9rem; }
+.discover-badges { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.25rem 0; }
+.discover-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+.discover-badge.kid { background: #e1ecf6; color: #2c6da6; }
+.discover-badge.book { background: #fef3c7; color: #b45309; }
+.discover-why { font-size: 0.82rem; color: var(--text); margin: 0.25rem 0; line-height: 1.35; }
 .discover-rating { font-size: 0.8rem; color: #c4541f; margin-top: 0.1rem; }
-.discover-address { font-size: 0.78rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.discover-types { font-size: 0.75rem; color: var(--muted); margin-top: 0.1rem; text-transform: capitalize; }
+.discover-address { font-size: 0.78rem; color: var(--muted); margin-top: 0.1rem; }
+.discover-card .btn-secondary { flex-shrink: 0; align-self: flex-start; }
 
 /* Accommodation gap warning */
 .accommodation-gap {

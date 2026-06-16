@@ -122,6 +122,16 @@ export default function Budget({ trip, session }) {
   const remaining = budget - total
   const pct = budget > 0 ? Math.min(100, (total / budget) * 100) : 0
 
+  // Daily budget = what's left spread over the days still ahead.
+  // Counts from today if the trip is underway, or the full span if it hasn't started.
+  const MS_DAY = 86400000
+  const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0)
+  const tripStart = new Date(trip.start_date + 'T00:00:00')
+  const tripEnd = new Date(trip.end_date + 'T00:00:00')
+  const effStart = todayMid > tripStart ? todayMid : tripStart
+  const daysLeft = tripEnd >= effStart ? Math.floor((tripEnd - effStart) / MS_DAY) + 1 : 0
+  const dailyBudget = daysLeft > 0 ? remaining / daysLeft : null
+
   const byCategory = CATEGORIES.map((cat) => {
     const catTotal = allRows.filter((r) => r.category === cat).reduce((s, r) => s + r.amount, 0)
     return { cat, total: catTotal }
@@ -160,6 +170,24 @@ export default function Budget({ trip, session }) {
               {remaining < 0 && ' over'}
             </span>
           </div>
+          {budget > 0 && (
+            <div className="card">
+              <span className="label">Daily budget</span>
+              {daysLeft > 0 ? (
+                <>
+                  <span className={`budget-amount ${remaining <= 0 ? 'over' : 'remaining'}`}>
+                    ${Math.max(0, dailyBudget).toLocaleString('en-AU', { minimumFractionDigits: 2 })}
+                    <span className="budget-per-day">/day</span>
+                  </span>
+                  <span className="budget-subnote">
+                    {daysLeft} day{daysLeft > 1 ? 's' : ''} left{remaining <= 0 ? ' · over budget' : ''}
+                  </span>
+                </>
+              ) : (
+                <span className="budget-amount">—</span>
+              )}
+            </div>
+          )}
         </div>
 
         {budget > 0 && (
